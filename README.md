@@ -1,7 +1,7 @@
 # COVR STUDIO
 ### Single-file HTML magazine cover builder — no install, no server, no dependencies to manage.
 
-Open `magazine-builder.html` in any modern browser and start building.
+Open `(https://ludgar.github.io/covr-studio/)` in any modern browser and start building.
 
 ---
 
@@ -52,10 +52,10 @@ Both the **Title** and the **Tagline** on the front cover have four alignment bu
 
 | Button | Effect |
 |--------|--------|
-| L | Left-align |
+| L | Left-align   |
 | C | Center-align |
-| R | Right-align |
-| ≡ | Justify |
+| R | Right-align  |
+| ≡ | Justify      
 
 ---
 
