@@ -1,7 +1,7 @@
 # COVR STUDIO
 ### Single-file HTML magazine cover builder — no install, no server, no dependencies to manage.
 
-Open `(https://ludgar.github.io/covr-studio/)` in any modern browser and start building.
+Open `https://ludgar.github.io/covr-studio/` in any modern browser and start building.
 
 ---
 
