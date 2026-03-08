@@ -12,6 +12,7 @@ const S = {
   mainPosY: 50, mainOpacity: 1, overlayOp: 0.5,
   frontBgColor: '#1a1212', backBgColor: '#0d0d0d',
   showBarcode: true,
+  lang: 'en',
   magSize: 'letter',
   dpi: 300,
   frontAlign: 'center',
@@ -25,8 +26,8 @@ const S = {
 // ══════════════════════════════════════════════
 
 // Fields captured/restored per issue
-const ISSUE_TEXT_FIELDS = ['f-issue','f-date','f-masthead','f-tagline','f-headline','f-sub','f-teaser','b-brand','b-tagline','b-blurb','b-website','b-price','b-legal'];
-const ISSUE_STATE_KEYS  = ['title','issue','date','spineBgColor','spineTextColor','titleFontName','spineIssueRot','spineHideDate','mainPosY','mainOpacity','overlayOp','frontBgColor','backBgColor','showBarcode','frontAlign','taglineAlign'];
+const ISSUE_TEXT_FIELDS = ['f-issue','f-date','f-masthead','f-tagline','f-headline','f-sub','f-teaser','f-feat-left','f-feat-right','f-vert-right','f-vert-right2','f-price-front','b-brand','b-tagline','b-blurb','b-website','b-price','b-legal'];
+const ISSUE_STATE_KEYS  = ['title','issue','date','spineBgColor','spineTextColor','titleFontName','spineIssueRot','spineHideDate','mainPosY','mainOpacity','overlayOp','frontBgColor','backBgColor','showBarcode','lang','frontAlign','taglineAlign'];
 
 let ISSUES = [];
 let CURRENT_IDX = 0;
@@ -60,6 +61,9 @@ function applyIssueSnapshot(snap) {
     ISSUE_TEXT_FIELDS.forEach(id => {
       const el = document.getElementById(id);
       if (el && snap.domText[id] !== undefined) el.textContent = snap.domText[id];
+      // Sync corresponding sidebar input if it has id="inp-{id}"
+      const inp = document.getElementById('inp-' + id);
+      if (inp && snap.domText[id] !== undefined) inp.value = snap.domText[id];
     });
   }
 
@@ -281,125 +285,227 @@ const SPINE_H   = 560;
 const SPINE_PAD = 28;   // equal margin from top and bottom edges
 
 // ══════════════════════════════════════════════
-//  BARCODE
+//  BARCODE  —  EAN-13, magazine-style
+//  Structure: [2-digit country] + [01729] + [5-digit issue/year] + [check]
 // ══════════════════════════════════════════════
-function makeBarcodeDataURL() {
-  try {
-    const c = document.createElement('canvas');
-    JsBarcode(c, '9771234567890', {
-      format: 'CODE128', lineColor: '#ffffff', background: 'transparent',
-      width: 1.5, height: 30, displayValue: true, fontSize: 7, margin: 2,
-      font: '"DM Sans", sans-serif'
-    });
-    return c.toDataURL('image/png');
-  } catch(e) { return ''; }
+
+// GS1 country prefixes (2-digit)
+const EAN_COUNTRY_PREFIX = {
+  en: '00',   // USA / English
+  de: '40',   // Germany
+  ja: '45',   // Japan
+  fr: '30',   // France
+  es: '84',   // Spain
+};
+
+// EAN-13 check digit (standard weighted sum)
+function ean13Check(digits12) {
+  let s = 0;
+  for (let i = 0; i < 12; i++) s += parseInt(digits12[i]) * (i % 2 === 0 ? 1 : 3);
+  return (10 - (s % 10)) % 10;
 }
-function initBarcodes() {
-  const url = makeBarcodeDataURL();
-  if (url) {
-    document.getElementById('bc-img-front').src = url;
-    document.getElementById('bc-img-back').src  = url;
+
+// Build EAN-13:
+//   [2]  country prefix  (from S.lang)
+//   [5]  fixed "01729"
+//   [5]  dynamic — derived from issue number + year
+//   [1]  EAN-13 check digit
+function buildEAN13(issueStr, dateStr, lang) {
+  const prefix  = EAN_COUNTRY_PREFIX[lang || 'en'] || '00';
+  const fixed   = '01729';
+
+  // Issue number — strip non-digits, fallback 1
+  const issueNum = parseInt((issueStr || '1').replace(/\D+/g, '')) || 1;
+  // Year — extract 4-digit year, fallback current
+  const yearMatch = (dateStr || '').match(/\d{4}/);
+  const year      = yearMatch ? parseInt(yearMatch[0]) : new Date().getFullYear();
+
+  // Dynamic 5 digits:  issue padded to 3  +  last 2 of year  (e.g. issue 12, 2026 → "01226")
+  const dynIssue = String(issueNum % 1000).padStart(3, '0');
+  const dynYear  = String(year % 100).padStart(2, '0');
+  const dynamic  = dynIssue + dynYear;           // always exactly 5 digits
+
+  const digits12 = prefix + fixed + dynamic;     // 2+5+5 = 12
+  const check    = ean13Check(digits12);
+  return digits12 + check;                       // 13 digits total
+}
+
+function makeBarcodeDataURL(ean) {
+  // Legacy: kept for any external callers; returns empty
+  return '';
+}
+
+function refreshBarcodes() {
+  const ean = buildEAN13(S.issue, S.date, S.lang);
+  const svgEl = document.getElementById('bc-svg-front');
+  if (!svgEl) return;
+  try {
+    JsBarcode(svgEl, ean, {
+      format:       'EAN13',
+      lineColor:    '#ffffff',
+      background:   'transparent',
+      width:        1.4,
+      height:       22,
+      displayValue: true,
+      fontSize:     7,
+      margin:       2,
+      font:         '"DM Sans", sans-serif',
+      textMargin:   2,
+      xmlDocument:  document
+    });
+  } catch(e) {
+    console.warn('Barcode SVG error:', e);
   }
 }
+
+// Rasterize the inline SVG barcode to a canvas ImageBitmap (used during hi-res export)
+async function getBarcodeBitmap() {
+  const svgEl = document.getElementById('bc-svg-front');
+  if (!svgEl) return null;
+  const serializer = new XMLSerializer();
+  let svgStr = serializer.serializeToString(svgEl);
+  // Ensure xmlns is present
+  if (!svgStr.includes('xmlns=')) {
+    svgStr = svgStr.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url  = URL.createObjectURL(blob);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+function initBarcodes() { refreshBarcodes(); }
+
+function toggleBarcode(show) {
+  S.showBarcode = show;
+  const fEl = document.getElementById('f-barcode');
+  if (fEl) fEl.style.display = show ? '' : 'none';
+  scheduleSave();
+}
+
 
 // ══════════════════════════════════════════════
 //  SPINE CANVAS RENDERER
 // ══════════════════════════════════════════════
+
+// Return the vertical offset needed to visually center a string drawn with textBaseline:'alphabetic'
+// Positive offset shifts the draw point DOWN to compensate for font metric dead space.
+function spineGlyphOffset(ctx, text) {
+  const m       = ctx.measureText(text);
+  const ascent  = m.actualBoundingBoxAscent  ?? 0;
+  const descent = m.actualBoundingBoxDescent ?? 0;
+  const glyphH  = ascent + descent;
+  // 'middle' baseline sits at (ascent - descent)/2 above the baseline
+  // True visual center correction:
+  return (ascent - descent) / 2 - glyphH / 2 + descent;
+}
+
 function drawSpineCtx(ctx, W, H) {
   const PAD = SPINE_PAD;
 
-  // ── 1. Background color ──
+  // ── 1. Background ──
   ctx.fillStyle = S.spineBgColor;
   ctx.fillRect(0, 0, W, H);
 
-  // ── 2. Full spine background image ──
+  // ── 2. Full spine image ──
   if (S.spineFullImgEl) {
     drawImageCover(ctx, S.spineFullImgEl, 0, 0, W, H, 50);
   }
 
-  // ── 3. Date at TOP — rotated CW (+90°) so it reads top→bottom along the spine ──
+  // ── 3. Date — top, reads top→bottom (CW rotation) ──
   if (S.date && !S.spineHideDate) {
-    ctx.save();
-    const dateFont = '7px "DM Sans", Arial, sans-serif';
-    ctx.font = dateFont;
     const dateText = S.date.toUpperCase();
-    // Translate to the top margin center, rotate so text flows downward
+    ctx.save();
+    ctx.font = '7px "DM Sans", Arial, sans-serif';
+    const m      = ctx.measureText(dateText);
+    const gAsc   = m.actualBoundingBoxAscent  ?? 5;
+    const gDesc  = m.actualBoundingBoxDescent ?? 1;
+    // To center the glyph across the spine width:
+    // after CW rotation, the glyph's height maps to the screen X axis.
+    // Drawing the baseline at +(gAsc-gDesc)/2 places the visual glyph center at the origin (W/2).
+    const shift  = (gAsc - gDesc) / 2;
     ctx.translate(W / 2, PAD);
     ctx.rotate(Math.PI / 2);
     ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle    = S.spineTextColor;
     ctx.globalAlpha  = 0.45;
-    ctx.fillText(dateText, 0, 0);
-    ctx.globalAlpha  = 1;
+    ctx.fillText(dateText, 0, shift);
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
-  // ── 4. Title — perfectly centered in available space ──
+  // ── 4. Title — true visual center of spine ──
   {
-    const maxLen     = H - 2 * (PAD + 18); // available track length
-    let   fontSize   = 16;
-    const fontStack  = `"${S.titleFontName}", sans-serif`;
+    const titleText = S.title.toUpperCase();
+    const maxLen    = H - 2 * (PAD + 18);
+    let   fontSize  = 16;
+    const fontStack = `"${S.titleFontName}", sans-serif`;
     ctx.font = `${fontSize}px ${fontStack}`;
-    const measured   = ctx.measureText(S.title.toUpperCase()).width;
+    const measured  = ctx.measureText(titleText).width;
     if (measured > maxLen) {
       fontSize = Math.max(7, Math.floor(fontSize * maxLen / measured));
     }
     ctx.font = `${fontSize}px ${fontStack}`;
 
-    // True visual center of the full spine height
-    const cx = W / 2;
-    const cy = H / 2;
-
     ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(-Math.PI / 2);          // text reads bottom→top (standard book spine)
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate(-Math.PI / 2);
     ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';       // exactly centered on the translation point
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle    = S.spineTextColor;
-    ctx.fillText(S.title.toUpperCase(), 0, 0);
+
+    // Compute tight vertical center: offset so visual glyph mid = 0
+    const m     = ctx.measureText(titleText);
+    const gAsc  = m.actualBoundingBoxAscent  ?? fontSize * 0.72;
+    const gDesc = m.actualBoundingBoxDescent ?? fontSize * 0.12;
+    const shift = (gAsc - gDesc) / 2; // shifts baseline so glyph center = 0
+    ctx.fillText(titleText, 0, shift);
     ctx.restore();
   }
 
-  // ── 5. Bottom small emblem image ──
+  // ── 5. Bottom emblem image ──
   if (S.spineBottomImgEl) {
-    const imgSz = W - 6;   // 22px wide, centred; spine is 28px
+    const imgSz = W - 6;
     const imgX  = (W - imgSz) / 2;
-    // position it just above the issue text zone, with a 4px gap
-    const imgY  = H - PAD - 2 - 14 - imgSz;  // 14 = approx issue text height
+    const imgY  = H - PAD - 2 - 14 - imgSz;
     ctx.drawImage(S.spineBottomImgEl, imgX, imgY, imgSz, imgSz);
   }
 
-  // ── 6. Issue at BOTTOM — rotation determined by S.spineIssueRot ──
+  // ── 6. Issue — bottom, rotation per S.spineIssueRot ──
   if (S.issue) {
     const issueText = S.issue.toUpperCase();
     ctx.save();
     ctx.font         = '7px "DM Sans", Arial, sans-serif';
     ctx.fillStyle    = S.spineTextColor;
     ctx.globalAlpha  = 0.4;
-    ctx.textBaseline = 'middle';
     ctx.textAlign    = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    const m     = ctx.measureText(issueText);
+    const gAsc  = m.actualBoundingBoxAscent  ?? 5;
+    const gDesc = m.actualBoundingBoxDescent ?? 1;
+    // Same formula as date and title: centers glyph visually across spine width
+    const shift = (gAsc - gDesc) / 2;
 
     if (S.spineIssueRot === 'horiz') {
-      // Draw horizontally, centered, at exact same distance from bottom as date is from top
       ctx.translate(W / 2, H - PAD);
-      // No rotation — text goes across the 28px width; shrink font if needed
-      const issW = ctx.measureText(issueText).width;
-      if (issW > W - 4) {
-        const scale = (W - 4) / issW;
-        ctx.scale(scale, 1);
-      }
-      ctx.fillText(issueText, 0, 0);
+      const issW = m.width;
+      if (issW > W - 4) ctx.scale((W - 4) / issW, 1);
+      ctx.fillText(issueText, 0, shift);
     } else if (S.spineIssueRot === 'ccw') {
-      // Rotated CCW — same direction as title (reads bottom→top)
       ctx.translate(W / 2, H - PAD);
       ctx.rotate(-Math.PI / 2);
-      ctx.fillText(issueText, 0, 0);
+      ctx.fillText(issueText, 0, shift);
     } else {
-      // 'cw' default — rotated CW, reads top→bottom (same direction as date)
+      // 'cw' default
       ctx.translate(W / 2, H - PAD);
       ctx.rotate(Math.PI / 2);
-      ctx.fillText(issueText, 0, 0);
+      ctx.fillText(issueText, 0, shift);
     }
     ctx.restore();
   }
@@ -599,21 +705,105 @@ function setText(id, val) {
 function fitText(id, maxFontPx) {
   const el = document.getElementById(id);
   if (!el) return;
-  // Reset to max first
   el.style.fontSize = maxFontPx + 'px';
-  // Iteratively reduce until it fits (scrollWidth ≤ clientWidth)
   let size = maxFontPx;
   while (el.scrollWidth > el.clientWidth && size > 8) {
     size -= 1;
     el.style.fontSize = size + 'px';
   }
+  tightenTextBox(el);
+}
+
+// Remove only the top dead space caused by font ascender metrics.
+// Never sets height — works correctly for both single and multi-line elements.
+function tightenTextBox(el) {
+  if (!el) return;
+  // Reset first so we measure from a clean state
+  el.style.marginTop  = '';
+  el.style.paddingTop = '';
+  el.style.height     = '';
+  el.style.overflow   = '';
+
+  const text = el.textContent.trim();
+  if (!text) return;
+
+  const cs       = getComputedStyle(el);
+  const fontSize = parseFloat(cs.fontSize) || 12;
+  const lineH    = parseFloat(cs.lineHeight);
+
+  // Measure true glyph top via canvas
+  const cv  = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  ctx.font  = cs.font;
+  const m   = ctx.measureText(text.split('\n')[0] || text);
+
+  const ascent = m.actualBoundingBoxAscent ?? fontSize * 0.72;
+
+  // The line box height (= lineHeight when set, else ≈ fontSize * 1.2)
+  const lineBox = isNaN(lineH) ? fontSize * 1.2 : lineH;
+
+  // Dead space above the glyph cap = half the leading gap above
+  // topGap is how far down from the line-box top the glyph cap sits
+  const topGap = Math.max(0, lineBox - ascent - (fontSize * 0.18));
+  const pull   = Math.floor(topGap * 0.85); // slight multiplier — don't over-pull
+
+  if (pull > 0) el.style.marginTop = `-${pull}px`;
+}
+
+// Relax while editing, re-tighten on blur
+function bindTightenOnEdit(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('focus', () => {
+    el.style.marginTop  = '';
+    el.style.paddingTop = '';
+    el.style.height     = '';
+    el.style.overflow   = '';
+  });
+  el.addEventListener('blur', () => tightenTextBox(el));
 }
 
 function fitAllTitles() {
   fitText('f-masthead', 72);
   fitText('b-brand',    42);
+  // Tighten single-line labels only
+  ['f-issue','f-date','f-tagline','f-price-front','b-tagline'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) tightenTextBox(el);
+  });
   updateTaglinePos();
-  // Spine is canvas-drawn so it self-fits already
+  updateSubPos();
+  updateBottomZone();
+}
+
+// Chain f-sub directly below f-headline with tight gap
+function updateSubPos() {
+  const hl  = document.getElementById('f-headline');
+  const sub = document.getElementById('f-sub');
+  if (!hl || !sub) return;
+  // headline uses transform:translateY(-50%) so its rendered top = offsetTop - offsetHeight/2
+  const hlRenderedTop = hl.offsetTop - hl.offsetHeight / 2;
+  const hlBottom      = hlRenderedTop + hl.offsetHeight;
+  sub.style.top = (hlBottom + 4) + 'px';
+  sub.style.transform = 'none'; // clear any inherited transform
+}
+
+// Anchor f-feat-left/right just above f-teaser with a consistent gap
+function updateBottomZone() {
+  const cover  = document.getElementById('cover-front');
+  const teaser = document.getElementById('f-teaser');
+  const featL  = document.getElementById('f-feat-left');
+  const featR  = document.getElementById('f-feat-right');
+  if (!cover || !teaser || !featL || !featR) return;
+
+  const coverH     = cover.offsetHeight;
+  // teaser offsetTop = distance from cover top to teaser top
+  const teaserTop  = teaser.offsetTop;
+  // feats bottom = distance from cover bottom to where feats should end
+  const featBottom = coverH - teaserTop + 8;
+
+  featL.style.bottom = featBottom + 'px';
+  featR.style.bottom = featBottom + 'px';
 }
 
 function setAllTitles(val) {
@@ -622,9 +812,11 @@ function setAllTitles(val) {
   setText('b-brand', val);
   fitAllTitles();
   renderSpine();
+  scheduleSave();
+  refreshBarcodes();
 }
-function setAllIssues(val) { S.issue = val; setText('f-issue', val);    renderSpine(); }
-function setDate(val)       { S.date  = val; setText('f-date', val);    renderSpine(); }
+function setAllIssues(val) { S.issue = val; setText('f-issue', val); renderSpine(); scheduleSave(); refreshBarcodes(); }
+function setDate(val)       { S.date  = val; setText('f-date', val); renderSpine(); scheduleSave(); refreshBarcodes(); }
 
 function applyTitleColor(val, swatchEl) {
   document.getElementById('f-masthead').style.color = val;
@@ -659,16 +851,11 @@ function setOverlay(val) {
   document.getElementById('lyr-overlay').style.background =
     `linear-gradient(to bottom,rgba(0,0,0,${(op*.7).toFixed(2)}) 0%,transparent 40%,rgba(0,0,0,${op.toFixed(2)}) 100%)`;
   document.getElementById('ov-val').textContent = val + '%';
+  scheduleSave();
 }
-function setSpineBg(val)    { S.spineBgColor   = val; renderSpine(); }
-function setSpineColor(val) { S.spineTextColor = val; renderSpine(); }
+function setSpineBg(val)    { S.spineBgColor   = val; renderSpine(); scheduleSave(); }
+function setSpineColor(val) { S.spineTextColor = val; renderSpine(); scheduleSave(); }
 function setSpineIssueRot(val) { S.spineIssueRot = val; renderSpine(); }
-function toggleBarcode(show) {
-  S.showBarcode = show;
-  document.getElementById('f-barcode').style.display = show ? '' : 'none';
-  document.getElementById('b-barcode').style.display = show ? '' : 'none';
-}
-
 // ══════════════════════════════════════════════
 //  MAGAZINE SIZES  (width × height in mm)
 // ══════════════════════════════════════════════
@@ -724,10 +911,10 @@ function setDpi(val)      { S.dpi    = Number(val); updateOutputInfo(); }
 //  The panel-sizer wrapper is sized to the target display dimensions
 //  so the surrounding flexbox uses the right space.
 // ══════════════════════════════════════════════
-const DESIGN_W  = 420;
-const DESIGN_H  = 560;
-const DESIGN_SW = 28;
-const SPINE_RATIO = DESIGN_SW / DESIGN_W;
+let DESIGN_W  = 420;
+let DESIGN_H  = 560;
+let DESIGN_SW = 28;
+const SPINE_RATIO = 28 / 420;   // fixed physical proportion
 
 function resizePanels() {
   const canvasArea = document.querySelector('.canvas-area');
@@ -736,38 +923,46 @@ function resizePanels() {
   const size  = MAG_SIZES[S.magSize] || MAG_SIZES.letter;
   const ratio = size.w / size.h;
 
-  // Available space inside the canvas area padding (40px sides, 40px top, 56px bottom)
+  // ── Recompute design canvas dimensions to match the format ratio ──
+  // DESIGN_H is always 560; DESIGN_W scales with the format
+  DESIGN_W  = Math.round(DESIGN_H * ratio);
+  DESIGN_SW = Math.max(14, Math.round(DESIGN_W * SPINE_RATIO));
+
+  // Resize the actual cover div elements so % positions map correctly
+  const frontEl = document.getElementById('cover-front');
+  const backEl  = document.getElementById('cover-back');
+  const spineEl = document.getElementById('cover-spine');
+  const spineCanvas = document.getElementById('spine-canvas');
+  if (frontEl)    { frontEl.style.width = DESIGN_W + 'px'; frontEl.style.height = DESIGN_H + 'px'; }
+  if (backEl)     { backEl.style.width  = DESIGN_W + 'px'; backEl.style.height  = DESIGN_H + 'px'; }
+  if (spineEl)    { spineEl.style.width = DESIGN_SW + 'px'; spineEl.style.height = DESIGN_H + 'px'; }
+  if (spineCanvas){ spineCanvas.width = DESIGN_SW; spineCanvas.style.width = DESIGN_SW + 'px'; spineCanvas.style.height = DESIGN_H + 'px'; }
+
+  // Available display space
   const availW = canvasArea.offsetWidth  - 80;
   const availH = canvasArea.offsetHeight - 96;
   if (availW <= 0 || availH <= 0) return;
 
-  // Target display size for each panel at this format ratio
-  // Total spread = 2 × pW + spW = pW × (2 + SPINE_RATIO)
+  // Target display size at this ratio
   const spreadFactor = ratio * (2 + SPINE_RATIO);
-  const pHfromH = availH;
-  const pHfromW = availW / spreadFactor;
-  const targetPH  = Math.floor(Math.min(pHfromH, pHfromW));
+  const targetPH  = Math.floor(Math.min(availH, availW / spreadFactor));
   const targetPW  = Math.floor(targetPH * ratio);
   const targetSpW = Math.max(12, Math.floor(targetPW * SPINE_RATIO));
 
-  // ── Uniform scale: fit design canvas (420×560) into target box ──
-  // Same scale for both axes — never distorts fonts or images
+  // Uniform scale so design fits the target display box without stretching
   const scaleF  = Math.min(targetPW / DESIGN_W,  targetPH / DESIGN_H);
   const scaleSp = Math.min(targetSpW / DESIGN_SW, targetPH / DESIGN_H);
 
-  // Actual rendered size after uniform scale
   const scaledPW  = Math.round(DESIGN_W  * scaleF);
   const scaledPH  = Math.round(DESIGN_H  * scaleF);
   const scaledSpW = Math.round(DESIGN_SW * scaleSp);
   const scaledSpH = Math.round(DESIGN_H  * scaleSp);
 
-  // Offset to center the scaled panel inside the target sizer box
   const offsetFX = Math.floor((targetPW  - scaledPW)  / 2);
   const offsetFY = Math.floor((targetPH  - scaledPH)  / 2);
   const offsetSX = Math.floor((targetSpW - scaledSpW) / 2);
   const offsetSY = Math.floor((targetPH  - scaledSpH) / 2);
 
-  // ── Size the sizer wrappers ──
   const sizerFront = document.getElementById('sizer-front');
   const sizerSpine = document.getElementById('sizer-spine');
   const sizerBack  = document.getElementById('sizer-back');
@@ -775,25 +970,18 @@ function resizePanels() {
   if (sizerSpine) { sizerSpine.style.width = targetSpW + 'px'; sizerSpine.style.height = targetPH + 'px'; }
   if (sizerBack)  { sizerBack.style.width  = targetPW  + 'px'; sizerBack.style.height  = targetPH + 'px'; }
 
-  // ── Apply uniform scale + centering offset to cover divs ──
-  const front = document.getElementById('cover-front');
-  const back  = document.getElementById('cover-back');
-  const spine = document.getElementById('cover-spine');
+  if (frontEl) frontEl.style.transform = `translate(${offsetFX}px,${offsetFY}px) scale(${scaleF})`;
+  if (backEl)  backEl.style.transform  = `translate(${offsetFX}px,${offsetFY}px) scale(${scaleF})`;
+  if (spineEl) spineEl.style.transform = `translate(${offsetSX}px,${offsetSY}px) scale(${scaleSp})`;
 
-  if (front) front.style.transform = `translate(${offsetFX}px,${offsetFY}px) scale(${scaleF})`;
-  if (back)  back.style.transform  = `translate(${offsetFX}px,${offsetFY}px) scale(${scaleF})`;
-  if (spine) spine.style.transform = `translate(${offsetSX}px,${offsetSY}px) scale(${scaleSp})`;
-
-  // Spine canvas always renders at design resolution; CSS scale handles display
-  renderSpine();
-
-  // Store design-space dims for download renderers
-  S.previewW   = DESIGN_W;
-  S.previewH   = DESIGN_H;
+  S.previewW  = DESIGN_W;
+  S.previewH  = DESIGN_H;
   S.previewSpW = DESIGN_SW;
 
-  // fitAllTitles measures scrollWidth on the 420×560 element — still correct
+  renderSpine();
   fitAllTitles();
+  updateSubPos();
+  updateBottomZone();
 }
 
 let _badgeTimer = null;
@@ -835,12 +1023,27 @@ function setAlign(elId, align, btn, groupId) {
 //  TAGLINE POSITION — sticks to masthead bottom
 // ══════════════════════════════════════════════
 function updateTaglinePos() {
-  const mast = document.getElementById('f-masthead');
-  const tag  = document.getElementById('f-tagline');
+  const issueEl = document.getElementById('f-issue');
+  const dateEl  = document.getElementById('f-date');
+  const mast    = document.getElementById('f-masthead');
+  const tag     = document.getElementById('f-tagline');
   if (!mast || !tag) return;
-  // offsetTop + offsetHeight gives the actual bottom of the masthead box
-  const bottom = mast.offsetTop + mast.offsetHeight;
-  tag.style.top = (bottom + 5) + 'px';
+
+  // Bottom of issue/date row
+  const rowBottom = Math.max(
+    issueEl ? issueEl.offsetTop + issueEl.offsetHeight : 0,
+    dateEl  ? dateEl.offsetTop  + dateEl.offsetHeight  : 0
+  );
+
+  // Place masthead just below — account for any negative marginTop already applied
+  const mastMT  = parseFloat(mast.style.marginTop) || 0;
+  const mastTop = rowBottom + 4 - mastMT; // compensate so rendered top = rowBottom+4
+  mast.style.top = mastTop + 'px';
+
+  // Tagline: below rendered bottom of masthead
+  const renderedBot = mastTop + mastMT + mast.offsetHeight;
+  tag.style.top = (renderedBot + 5) + 'px';
+  tightenTextBox(tag);
 }
 
 // ══════════════════════════════════════════════
@@ -895,154 +1098,191 @@ function drawImageCover(ctx, img, x, y, w, h, posYPct = 50) {
 const DL_SCALE = 2;
 
 async function renderFrontToCanvas(outW, outH) {
-  const PREVIEW_W = S.previewW || 420;
-  const PREVIEW_H = S.previewH || 560;
-  const W = outW || PREVIEW_W * 2;
-  const H = outH || PREVIEW_H * 2;
-  const scaleX = W / PREVIEW_W;
-  const scaleY = H / PREVIEW_H;
+  const DW = DESIGN_W, DH = DESIGN_H;
+  const W = outW || DW * 2, H = outH || DH * 2;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
-  const ctx = c.getContext('2d'); ctx.scale(scaleX, scaleY);
+  const ctx = c.getContext('2d');
   await document.fonts.ready;
 
-  // 1. Solid BG
-  ctx.fillStyle = S.frontBgColor || '#1a1212'; ctx.fillRect(0, 0, W, H);
-  // 2. BG image
-  if (S.bgImgEl)   drawImageCover(ctx, S.bgImgEl, 0, 0, W, H, 50);
-  // 3. Main image
+  // ONE global scale: design-space pixels → output pixels
+  // Everything drawn below uses DESIGN coordinates
+  ctx.scale(W / DW, H / DH);
+
+  // ── 1. BG solid ──
+  ctx.fillStyle = S.frontBgColor || '#1a1212';
+  ctx.fillRect(0, 0, DW, DH);
+  // ── 2. BG image ──
+  if (S.bgImgEl) drawImageCover(ctx, S.bgImgEl, 0, 0, DW, DH, 50);
+  // ── 3. Main image ──
   if (S.mainImgEl) {
     ctx.save(); ctx.globalAlpha = S.mainOpacity;
-    drawImageCover(ctx, S.mainImgEl, 0, 0, W, H, S.mainPosY);
+    drawImageCover(ctx, S.mainImgEl, 0, 0, DW, DH, S.mainPosY);
     ctx.restore();
   }
-  // 4. Overlay
+  // ── 4. Overlay gradient ──
   const op = S.overlayOp;
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  const grad = ctx.createLinearGradient(0, 0, 0, DH);
   grad.addColorStop(0,   `rgba(0,0,0,${(op*.7).toFixed(2)})`);
   grad.addColorStop(0.4, 'rgba(0,0,0,0)');
   grad.addColorStop(1,   `rgba(0,0,0,${op.toFixed(2)})`);
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, DW, DH);
 
-  // 5. DOM text elements
-  const coverEl = document.getElementById('cover-front');
+  // ── Layout helpers ──
+  // el.offsetLeft/Top/Width/Height are CSS-transform-independent layout values
+  // relative to offsetParent (the cover div = DW×DH). They ARE our design coords.
+  // getComputedStyle().font uses CSS px font-size, also unaffected by parent transforms.
+  function dRect(el) {
+    return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+  }
+  // For elements with transform:translateY(-50%) (f-headline), adjust y by the translateY
+  function dRectTY(el) {
+    const r = dRect(el);
+    const tf = getComputedStyle(el).transform;
+    if (tf && tf !== 'none') {
+      const m = tf.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,[^,]+,\s*([-\d.]+)\)/);
+      if (m) r.y += parseFloat(m[1]); // CSS px translateY = design px
+    }
+    return r;
+  }
 
-  function paintEl(id, defaultAlign) {
+  function paintEl(id, defaultAlign, transformed) {
     const el = document.getElementById(id);
     if (!el || el.style.display === 'none') return;
-    const cs   = getComputedStyle(el);
-    const rect = el.getBoundingClientRect();
-    const cRect= coverEl.getBoundingClientRect();
-    const ex = rect.left - cRect.left, ey = rect.top - cRect.top;
-    const ew = rect.width;
+    const cs = getComputedStyle(el);
+    const dr = transformed ? dRectTY(el) : dRect(el);
     ctx.save();
-    ctx.font         = cs.font;
-    ctx.fillStyle    = cs.color;
+    ctx.font      = cs.font;       // CSS px font = design px ✓
+    ctx.fillStyle = cs.color;
     ctx.textBaseline = 'top';
-    const align      = cs.textAlign || defaultAlign || 'left';
-    ctx.textAlign    = align;
-    const drawX      = align === 'center' ? ex + ew/2 : align === 'right' ? ex + ew : ex;
-    const lineH      = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
-    wrapText(ctx, el.textContent || '', ew).forEach((line, i) => ctx.fillText(line, drawX, ey + i * lineH));
+    const align  = cs.textAlign || defaultAlign || 'left';
+    ctx.textAlign = align;
+    const drawX  = align === 'center' ? dr.x + dr.w/2 : align === 'right' ? dr.x + dr.w : dr.x;
+    const lineH  = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
+    wrapText(ctx, el.textContent || '', dr.w)
+      .forEach((line, i) => ctx.fillText(line, drawX, dr.y + i * lineH));
     ctx.restore();
   }
 
-  paintEl('f-issue', 'left'); paintEl('f-date', 'right');
+  // ── 5. Text elements ──
+  paintEl('f-issue', 'left');
+  paintEl('f-date',  'right');
 
-  // Masthead or Logo
+  // Masthead or logo image
   const logoEl = document.getElementById('f-logo-img');
   if (logoEl.classList.contains('show') && S.logoImgEl) {
-    const logoH  = Math.min(90, S.logoImgEl.naturalHeight);
-    const logoW  = (S.logoImgEl.naturalWidth / S.logoImgEl.naturalHeight) * logoH;
-    ctx.drawImage(S.logoImgEl, (W - logoW) / 2, 36, logoW, logoH);
+    const logoH = Math.min(DH * 0.16, S.logoImgEl.naturalHeight);
+    const logoW = (S.logoImgEl.naturalWidth / S.logoImgEl.naturalHeight) * logoH;
+    ctx.drawImage(S.logoImgEl, (DW - logoW) / 2, DH * 0.032, logoW, logoH);
   } else if (document.getElementById('f-masthead').style.display !== 'none') {
     paintEl('f-masthead', S.frontAlign || 'center');
   }
 
-  paintEl('f-tagline', S.taglineAlign || 'center');
-  paintEl('f-headline', 'left');
-  paintEl('f-sub', 'left');
+  paintEl('f-tagline',    S.taglineAlign || 'center');
+  paintEl('f-headline',   'left', true);   // has translateY(-50%)
+  paintEl('f-sub',        'left');
+  paintEl('f-feat-left',  'left');
+  paintEl('f-feat-right', 'right');
+  paintEl('f-price-front','left');
 
-  // Teaser with divider line
+  // ── 6. Vertical right columns ──
+  ['f-vert-right','f-vert-right2'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const cs = getComputedStyle(el);
+    const dr = dRect(el);
+    ctx.save();
+    ctx.translate(dr.x + dr.w/2, dr.y + dr.h/2);
+    ctx.rotate(Math.PI/2);
+    ctx.font = cs.font; ctx.fillStyle = cs.color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(el.textContent, 0, 0);
+    ctx.restore();
+  });
+
+  // ── 7. Teaser with divider ──
   const teaserEl = document.getElementById('f-teaser');
   if (teaserEl) {
-    const cs  = getComputedStyle(teaserEl);
-    const rect= teaserEl.getBoundingClientRect();
-    const cRect=coverEl.getBoundingClientRect();
-    const tx  = rect.left - cRect.left, ty = rect.top - cRect.top, tw = rect.width;
+    const cs = getComputedStyle(teaserEl);
+    const dr = dRect(teaserEl);
+    ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + tw, ty); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dr.x, dr.y); ctx.lineTo(dr.x + dr.w, dr.y); ctx.stroke();
     ctx.fillStyle = cs.color; ctx.font = cs.font;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(teaserEl.textContent, tx, ty + 10);
+    ctx.fillText(teaserEl.textContent, dr.x, dr.y + 4);
+    ctx.restore();
   }
 
-  // Barcode
+  // ── 8. Barcode ──
   if (S.showBarcode) {
-    const bcImg = document.getElementById('bc-img-front');
-    if (bcImg?.src && bcImg.complete) {
-      const bcEl = document.getElementById('f-barcode');
-      const bRect= bcEl.getBoundingClientRect(), cRect2= coverEl.getBoundingClientRect();
-      ctx.drawImage(bcImg, bRect.left-cRect2.left, bRect.top-cRect2.top, bRect.width, bRect.height);
+    const bcEl  = document.getElementById('f-barcode');
+    const bcBmp = await getBarcodeBitmap();
+    if (bcBmp && bcEl) {
+      const dr = { x: bcEl.offsetLeft, y: bcEl.offsetTop, w: bcEl.offsetWidth, h: bcEl.offsetHeight };
+      ctx.drawImage(bcBmp, dr.x, dr.y, dr.w, dr.h);
     }
   }
   return c;
 }
 
 async function renderBackToCanvas(outW, outH) {
-  const PREVIEW_W = S.previewW || 420;
-  const PREVIEW_H = S.previewH || 560;
-  const W = outW || PREVIEW_W * 2;
-  const H = outH || PREVIEW_H * 2;
-  const scaleX = W / PREVIEW_W;
-  const scaleY = H / PREVIEW_H;
+  const DW = DESIGN_W, DH = DESIGN_H;
+  const W = outW || DW * 2, H = outH || DH * 2;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
-  const ctx = c.getContext('2d'); ctx.scale(scaleX, scaleY);
+  const ctx = c.getContext('2d');
   await document.fonts.ready;
 
-  ctx.fillStyle = S.backBgColor || '#0d0d0d'; ctx.fillRect(0, 0, W, H);
-  if (S.backImgEl) drawImageCover(ctx, S.backImgEl, 0, 0, W, H, 50);
-  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
+  // ONE global scale: design pixels → output pixels
+  ctx.scale(W / DW, H / DH);
 
-  const backEl = document.getElementById('cover-back');
-  function paintBack(id, defaultAlign) {
+  ctx.fillStyle = S.backBgColor || '#0d0d0d'; ctx.fillRect(0, 0, DW, DH);
+  if (S.backImgEl) drawImageCover(ctx, S.backImgEl, 0, 0, DW, DH, 50);
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, DW, DH);
+
+  function dRect(el) {
+    return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+  }
+  function dRectTY(el) {
+    const r = dRect(el);
+    const tf = getComputedStyle(el).transform;
+    if (tf && tf !== 'none') {
+      const m = tf.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,[^,]+,\s*([-\d.]+)\)/);
+      if (m) r.y += parseFloat(m[1]);
+    }
+    return r;
+  }
+  function paintBack(id, defaultAlign, transformed) {
     const el = document.getElementById(id); if (!el) return;
-    const cs  = getComputedStyle(el);
-    const rect= el.getBoundingClientRect(), cRect= backEl.getBoundingClientRect();
-    const ex = rect.left-cRect.left, ey = rect.top-cRect.top, ew = rect.width;
+    const cs = getComputedStyle(el);
+    const dr = transformed ? dRectTY(el) : dRect(el);
     ctx.save();
     ctx.font = cs.font; ctx.fillStyle = cs.color; ctx.textBaseline = 'top';
     const align = cs.textAlign || defaultAlign || 'left';
     ctx.textAlign = align;
-    const drawX = align === 'center' ? ex+ew/2 : align === 'right' ? ex+ew : ex;
+    const drawX = align === 'center' ? dr.x + dr.w/2 : align === 'right' ? dr.x + dr.w : dr.x;
     const lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize)*1.3;
-    wrapText(ctx, el.textContent||'', ew).forEach((line,i) => ctx.fillText(line, drawX, ey+i*lineH));
+    wrapText(ctx, el.textContent||'', dr.w)
+      .forEach((line,i) => ctx.fillText(line, drawX, dr.y + i*lineH));
     ctx.restore();
   }
-  paintBack('b-brand','center'); paintBack('b-tagline','center');
-  paintBack('b-blurb','center'); paintBack('b-website','center');
-  paintBack('b-price','center'); paintBack('b-legal','left');
-
-  if (S.showBarcode) {
-    const bcImg = document.getElementById('bc-img-back');
-    if (bcImg?.src && bcImg.complete) {
-      const bcEl = document.getElementById('b-barcode');
-      const bRect= bcEl.getBoundingClientRect(), cRect= backEl.getBoundingClientRect();
-      ctx.drawImage(bcImg, bRect.left-cRect.left, bRect.top-cRect.top, bRect.width, bRect.height);
-    }
-  }
+  paintBack('b-brand',   'center');
+  paintBack('b-tagline', 'center');
+  paintBack('b-blurb',   'center', true); // translateY(-50%)
+  paintBack('b-website', 'center');
+  paintBack('b-price',   'center');
+  paintBack('b-legal',   'left');
   return c;
 }
 
 function renderSpineHires(outSpW, outH) {
-  const W = outSpW || SPINE_W * 4;
-  const H = outH   || SPINE_H * 4;
+  const W = outSpW || DESIGN_SW * 4;
+  const H = outH   || DESIGN_H  * 4;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
-  ctx.scale(W / SPINE_W, H / SPINE_H);
-  drawSpineCtx(ctx, SPINE_W, SPINE_H);
+  ctx.scale(W / DESIGN_SW, H / DESIGN_H);
+  drawSpineCtx(ctx, DESIGN_SW, DESIGN_H);
   return c;
 }
 
@@ -1054,7 +1294,7 @@ function getOutputDims() {
   const dpi  = S.dpi;
   const pW   = mmToPx(size.w, dpi);
   const pH   = mmToPx(size.h, dpi);
-  const spW  = Math.round(pW * (28 / 420));
+  const spW  = Math.round(pW * SPINE_RATIO);  // uses fixed physical spine ratio
   return { pW, pH, spW };
 }
 
@@ -1144,6 +1384,90 @@ document.querySelectorAll('[contenteditable=true]').forEach(el => {
     }
   });
 });
+
+// ══════════════════════════════════════════════
+//  TRANSLATE  (MyMemory API — free, CORS-safe)
+// ══════════════════════════════════════════════
+
+// Fields we translate (skip issue#, date, price, legal, website — those are codes)
+const TRANSLATE_FIELD_IDS = [
+  'f-masthead', 'f-tagline', 'f-headline', 'f-sub', 'f-teaser',
+  'f-feat-left', 'f-feat-right', 'f-vert-right', 'f-vert-right2',
+  'b-brand', 'b-tagline', 'b-blurb'
+];
+
+const LANG_NAMES   = { en:'English',  de:'German', ja:'Japanese', fr:'French', es:'Spanish' };
+const LANG_MYMEMORY = { en:'en-US', de:'de-DE', ja:'ja-JP', fr:'fr-FR', es:'es-ES' };
+
+// Translate one string via MyMemory (free, no API key, CORS open)
+async function translateOne(text, fromCode, toCode) {
+  if (!text.trim()) return text;
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${fromCode}|${toCode}`;
+  const res  = await fetch(url);
+  const data = await res.json();
+  return data?.responseData?.translatedText || text;
+}
+
+async function translateCover(lang, btn) {
+  const status = document.getElementById('translate-status');
+
+  // Mark active button + store lang + update barcode prefix immediately
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active-lang'));
+  btn.classList.add('active-lang');
+
+  const prevLang = S.lang || 'en';
+  S.lang = lang;
+  refreshBarcodes();
+  scheduleSave();
+
+  const fromCode = LANG_MYMEMORY[prevLang] || 'en-US';
+  const toCode   = LANG_MYMEMORY[lang]     || 'en-US';
+
+  // Same language selected — nothing to translate
+  if (fromCode === toCode) {
+    status.textContent = `✓ Already in ${LANG_NAMES[lang]}`;
+    status.style.color = '#7ec99a';
+    return;
+  }
+
+  status.textContent = `Translating to ${LANG_NAMES[lang]}…`;
+  status.style.color = 'var(--accent)';
+
+  // Collect fields that have content
+  const entries = [];
+  TRANSLATE_FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.textContent.trim()) entries.push({ id, text: el.textContent.trim() });
+  });
+
+  try {
+    let done = 0;
+    for (const entry of entries) {
+      const translated = await translateOne(entry.text, fromCode, toCode);
+      const el = document.getElementById(entry.id);
+      if (el) el.textContent = translated;
+      document.querySelectorAll(`[oninput*="setText('${entry.id}'"]`).forEach(inp => inp.value = translated);
+      done++;
+      status.textContent = `Translating… ${done}/${entries.length}`;
+    }
+
+    fitAllTitles();
+    if (ISSUES.length > 0) ISSUES[CURRENT_IDX] = { ...ISSUES[CURRENT_IDX], ...snapshotCurrentIssue() };
+    scheduleSave();
+
+    status.textContent = `✓ Translated to ${LANG_NAMES[lang]}`;
+    status.style.color = '#7ec99a';
+    showToast(`Translated to ${LANG_NAMES[lang]}`, 'success');
+
+  } catch(e) {
+    console.error(e);
+    status.textContent = `✗ Translation failed: ${e.message}`;
+    status.style.color = '#e08080';
+    showToast('Translation failed', 'error');
+    S.lang = prevLang; // roll back lang on failure
+    btn.classList.remove('active-lang');
+  }
+}
 
 // ══════════════════════════════════════════════
 //  LOCAL STORAGE ENGINE
@@ -1301,33 +1625,22 @@ function showToast(msg, type = 'info') {
   _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-// ── Hook scheduleSave onto every state-change ──
-// We patch the key mutators to also call scheduleSave after they run.
-const _origSetAllTitles  = setAllTitles;  function setAllTitles(v)  { _origSetAllTitles(v);  scheduleSave(); }
-const _origSetAllIssues  = setAllIssues;  function setAllIssues(v)  { _origSetAllIssues(v);  scheduleSave(); }
-const _origSetDate       = setDate;       function setDate(v)        { _origSetDate(v);        scheduleSave(); }
-const _origSetOverlay    = setOverlay;    function setOverlay(v)     { _origSetOverlay(v);     scheduleSave(); }
-const _origSetSpineBg    = setSpineBg;    function setSpineBg(v)     { _origSetSpineBg(v);     scheduleSave(); }
-const _origSetSpineColor = setSpineColor; function setSpineColor(v)  { _origSetSpineColor(v);  scheduleSave(); }
-const _origToggleBarcode = toggleBarcode; function toggleBarcode(v)  { _origToggleBarcode(v);  scheduleSave(); }
 
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
 document.fonts.ready.then(() => {
   initBarcodes();
-  // Check for a saved project first — shows restore dialog if found
+  // Bind focus/blur relaxation for single-line tightened elements only
+  ['f-masthead','f-tagline','f-issue','f-date','f-price-front','b-brand','b-tagline']
+    .forEach(bindTightenOnEdit);
+
   const hasSaved = checkForSavedProject();
+  resizePanels();
+  updateOutputInfo();
+  initIssues();
   if (!hasSaved) {
-    // No saved data — start with a blank first issue
-    resizePanels();
-    updateOutputInfo();
-    initIssues();
-  } else {
-    // Restore dialog is showing; resizePanels + initIssues called after user decides
-    resizePanels();
-    updateOutputInfo();
-    initIssues();
+    requestAnimationFrame(() => { fitAllTitles(); updateSubPos(); updateBottomZone(); });
   }
 });
 
