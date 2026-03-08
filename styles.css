@@ -114,6 +114,17 @@ header { display:flex; align-items:center; justify-content:space-between;
 .storage-btn.save-now { border-color:#3a5a3a; color:#7ec99a; }
 .storage-btn.save-now:hover { background:rgba(94,180,120,.12); }
 
+/* ══ TRANSLATE ══ */
+.lang-btns { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
+.lang-btn {
+  flex:1; padding:6px 4px; background:#1a1a1a; border:1px solid #2a2a2a;
+  color:var(--muted); font-size:10px; font-weight:600; letter-spacing:1px;
+  cursor:pointer; border-radius:2px; transition:all .15s; text-transform:uppercase;
+}
+.lang-btn:hover { border-color:#555; color:var(--text); }
+.lang-btn.active-lang { background:rgba(200,169,110,.15); border-color:var(--accent); color:var(--accent); }
+.translate-status { font-size:9px; letter-spacing:1px; color:var(--muted); margin-top:6px; display:block; min-height:14px; }
+
 /* ══ TOAST ══ */
 .toast {
   position:fixed; bottom:28px; right:28px; z-index:999;
@@ -255,22 +266,24 @@ select { color:var(--text); font-size:12px; } select option { background:#1a1a1a
   position: relative;
 }
 
-/* FRONT — design dimensions, never changed by JS */
-.cover-front { width:420px; height:560px; position:relative; overflow:hidden; flex-shrink:0;
-  transform-origin: 0 0; }
+/* Shared layer styles */
 .lyr { position:absolute; inset:0; }
 .lyr-solid-bg  { background:#1a1212; z-index:0; }
 .lyr-bg-img    { background-size:cover; background-position:center; background-repeat:no-repeat; z-index:1; }
 .lyr-main-img  { background-size:cover; background-position:center 50%; background-repeat:no-repeat; z-index:2; }
-.lyr-overlay   { z-index:3; background:linear-gradient(to bottom,rgba(0,0,0,.35) 0%,transparent 40%,rgba(0,0,0,.5) 100%); }
-.f-issue  { position:absolute; top:16px; left:18px; z-index:5; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,.7); cursor:text; user-select:none; }
-.f-date   { position:absolute; top:16px; right:18px; z-index:5; font-size:9px; letter-spacing:2px; color:rgba(255,255,255,.7); cursor:text; user-select:none; }
-/* Masthead sits below the date/issue row — top set initially via CSS, then JS keeps it in sync */
-.f-masthead { position:absolute; top:36px; left:0; right:0; z-index:6; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:72px; letter-spacing:8px; line-height:1; color:#fff; text-shadow:0 2px 20px rgba(0,0,0,.5); cursor:text; user-select:none; white-space:nowrap; overflow:hidden; padding:0 8px; }
-.f-logo-img { position:absolute; top:36px; left:50%; transform:translateX(-50%); z-index:6; height:90px; width:auto; max-width:85%; object-fit:contain; display:none; }
+.lyr-overlay   { z-index:3; background:linear-gradient(to bottom,rgba(0,0,0,.45) 0%,transparent 35%,transparent 55%,rgba(0,0,0,.65) 100%); }
+
+/* Issue + date — small, top corners */
+.f-issue { position:absolute; top:1.43%; left:3.33%; z-index:8; font-size:8px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,.6); cursor:text; user-select:none; }
+.f-date  { position:absolute; top:1.43%; right:3.33%; z-index:8; font-size:8px; letter-spacing:2px; color:rgba(255,255,255,.6); cursor:text; user-select:none; text-align:right; }
+
+/* Masthead — JS sets top dynamically via updateTaglinePos */
+.f-masthead { position:absolute; top:4.64%; left:0; right:0; z-index:6; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:72px; letter-spacing:8px; line-height:1; color:#c8a96e; text-shadow:2px 2px 0 rgba(0,0,0,.7), 0 4px 24px rgba(0,0,0,.6); cursor:text; user-select:none; white-space:nowrap; overflow:hidden; padding:0 1.9%; }
+.f-logo-img { position:absolute; top:3.21%; left:50%; transform:translateX(-50%); z-index:6; height:16.07%; width:auto; max-width:85%; object-fit:contain; display:none; }
 .f-logo-img.show { display:block; }
-/* Tagline top is set dynamically by JS to always hug the masthead bottom */
-.f-tagline { position:absolute; top:116px; left:0; right:0; z-index:5; text-align:center; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:13px; letter-spacing:3px; color:rgba(255,255,255,.85); cursor:text; user-select:none; padding:0 8px; }
+
+/* Tagline — JS sets top dynamically */
+.f-tagline { position:absolute; top:20.71%; left:0; right:0; z-index:5; text-align:center; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:11px; letter-spacing:4px; color:rgba(255,255,255,.7); cursor:text; user-select:none; padding:0 1.9%; }
 
 /* Alignment buttons */
 .align-btns { display:flex; gap:3px; margin-top:6px; }
@@ -289,30 +302,51 @@ select { color:var(--text); font-size:12px; } select option { background:#1a1a1a
 .output-info-row:last-child { border-bottom:none; }
 .output-info-label { font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
 .output-info-val   { font-size:11px; color:var(--accent); font-weight:500; letter-spacing:.5px; }
-.f-headline { position:absolute; bottom:90px; left:22px; right:22px; z-index:5; font-family:'Playfair Display',serif; font-size:28px; font-weight:700; line-height:1.15; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.6); cursor:text; user-select:none; }
-.f-sub    { position:absolute; bottom:62px; left:22px; right:22px; z-index:5; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:14px; letter-spacing:1px; color:rgba(255,255,255,.8); cursor:text; user-select:none; }
-.f-teaser { position:absolute; bottom:20px; left:22px; right:22px; z-index:5; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,.6); cursor:text; user-select:none; border-top:1px solid rgba(255,255,255,.2); padding-top:10px; }
-.f-barcode { position:absolute; bottom:18px; right:18px; z-index:5; }
-.f-barcode img, .b-barcode img { height:38px; width:auto; display:block; }
+
+/* Headline — large, left-aligned, mid-cover. JS chains sub below it. */
+.f-headline { position:absolute; top:54%; left:3.33%; right:28.57%; z-index:7; font-family:'Bebas Neue',sans-serif; font-size:52px; font-weight:400; line-height:1; color:#c8a96e; text-shadow:2px 2px 0 rgba(0,0,0,.6), 0 4px 20px rgba(0,0,0,.7); cursor:text; user-select:none; transform:translateY(-50%); }
+
+/* Sub — JS sets top dynamically just below headline */
+.f-sub { position:absolute; top:calc(54% + 32px); left:3.33%; right:28.57%; z-index:7; font-family:'DM Sans',sans-serif; font-size:8px; font-weight:500; letter-spacing:.5px; line-height:1.5; color:rgba(255,255,255,.8); cursor:text; user-select:none; text-transform:uppercase; }
+
+/* Teaser — JS anchors feats above it */
+.f-teaser { position:absolute; bottom:6.43%; left:3.33%; right:3.33%; z-index:6; font-size:8px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,.5); cursor:text; user-select:none; border-top:1px solid rgba(255,255,255,.15); padding-top:5px; }
+
+/* RIGHT vertical text */
+.f-vert-right  { position:absolute; top:24.29%; right:3.33%; z-index:6; writing-mode:vertical-rl; text-orientation:mixed; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:4px; color:#c8a96e; cursor:text; user-select:none; max-height:32.14%; overflow:hidden; line-height:1.1; text-shadow:0 1px 6px rgba(0,0,0,.8); }
+.f-vert-right2 { position:absolute; top:24.29%; right:9.05%; z-index:6; writing-mode:vertical-rl; text-orientation:mixed; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:10px; letter-spacing:3px; color:rgba(255,255,255,.65); cursor:text; user-select:none; max-height:28.57%; overflow:hidden; line-height:1.3; }
+
+/* Feature callouts — JS anchors above .f-teaser */
+.f-feat-left  { position:absolute; bottom:14.29%; left:3.33%; z-index:7; width:42%; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1.5px; line-height:1.2; color:#c8a96e; text-shadow:0 1px 8px rgba(0,0,0,.9); cursor:text; user-select:none; }
+.f-feat-right { position:absolute; bottom:14.29%; right:3.33%; z-index:7; width:42%; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1.5px; line-height:1.2; color:#c8a96e; text-align:right; text-shadow:0 1px 8px rgba(0,0,0,.9); cursor:text; user-select:none; }
+
+/* Front price line */
+.f-price-front { position:absolute; bottom:1.43%; left:3.33%; z-index:8; font-size:8px; letter-spacing:2px; color:rgba(255,255,255,.55); cursor:text; user-select:none; text-transform:uppercase; }
+
+.f-barcode { position:absolute; bottom:1.07%; right:2.38%; z-index:8; }
+.f-barcode svg { height:22px; width:auto; display:block; }
 
 /* SPINE — design dimensions */
 .cover-spine { width:28px; height:560px; position:relative; overflow:hidden; flex-shrink:0;
   transform-origin: 0 0; }
 #spine-canvas { position:absolute; top:0; left:0; width:28px; height:560px; }
 
-/* BACK — design dimensions */
+/* FRONT — design dimensions set by JS; width changes per format */
+.cover-front { width:420px; height:560px; position:relative; overflow:hidden; flex-shrink:0;
+  transform-origin: 0 0; }
+
+/* BACK — design dimensions set by JS */
 .cover-back { width:420px; height:560px; position:relative; overflow:hidden; flex-shrink:0;
   transform-origin: 0 0; }
 .lyr-back-solid { background:#0d0d0d; z-index:0; }
 .lyr-back-img   { background-size:cover; background-position:center; background-repeat:no-repeat; z-index:1; }
 .lyr-back-ov    { background:rgba(0,0,0,.55); z-index:2; }
-.b-brand   { position:absolute; top:30px; left:28px; right:28px; z-index:4; font-family:'Bebas Neue',sans-serif; font-size:42px; letter-spacing:5px; color:#fff; text-align:center; cursor:text; user-select:none; white-space:nowrap; overflow:hidden; }
-.b-tagline { position:absolute; top:84px; left:28px; right:28px; z-index:4; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:14px; letter-spacing:2px; color:rgba(255,255,255,.7); text-align:center; cursor:text; user-select:none; }
-.b-blurb   { position:absolute; top:50%; left:28px; right:28px; transform:translateY(-50%); z-index:4; font-family:'Cormorant Garamond',serif; font-size:16px; line-height:1.7; color:rgba(255,255,255,.85); text-align:center; cursor:text; user-select:none; }
-.b-website { position:absolute; bottom:80px; left:0; right:0; z-index:4; font-size:10px; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,.5); text-align:center; cursor:text; user-select:none; }
-.b-price   { position:absolute; bottom:56px; left:0; right:0; z-index:4; font-size:11px; letter-spacing:2px; color:rgba(255,255,255,.4); text-align:center; cursor:text; user-select:none; }
-.b-barcode { position:absolute; bottom:18px; right:20px; z-index:4; }
-.b-legal   { position:absolute; bottom:12px; left:20px; z-index:4; font-size:7px; color:rgba(255,255,255,.25); line-height:1.4; max-width:200px; cursor:text; user-select:none; }
+.b-brand   { position:absolute; top:5.36%;  left:6.67%; right:6.67%; z-index:4; font-family:'Bebas Neue',sans-serif; font-size:42px; letter-spacing:5px; color:#fff; text-align:center; cursor:text; user-select:none; white-space:nowrap; overflow:hidden; }
+.b-tagline { position:absolute; top:15%;    left:6.67%; right:6.67%; z-index:4; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:14px; letter-spacing:2px; color:rgba(255,255,255,.7); text-align:center; cursor:text; user-select:none; }
+.b-blurb   { position:absolute; top:50%;    left:6.67%; right:6.67%; transform:translateY(-50%); z-index:4; font-family:'Cormorant Garamond',serif; font-size:16px; line-height:1.7; color:rgba(255,255,255,.85); text-align:center; cursor:text; user-select:none; }
+.b-website { position:absolute; bottom:14.29%; left:0; right:0; z-index:4; font-size:10px; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,.5); text-align:center; cursor:text; user-select:none; }
+.b-price   { position:absolute; bottom:10%;   left:0; right:0; z-index:4; font-size:11px; letter-spacing:2px; color:rgba(255,255,255,.4); text-align:center; cursor:text; user-select:none; }
+.b-legal   { position:absolute; bottom:2.14%; left:4.76%; z-index:4; font-size:7px; color:rgba(255,255,255,.25); line-height:1.4; max-width:47.62%; cursor:text; user-select:none; }
 
 [contenteditable=true]:focus { outline:1px dashed rgba(200,169,110,.6); outline-offset:2px; background:rgba(0,0,0,.15); }
 .dl-btn { position:absolute; bottom:-36px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:2px; text-transform:uppercase; padding:6px 14px; background:#1a1a1a; border:1px solid #333; color:var(--accent); cursor:pointer; border-radius:2px; white-space:nowrap; transition:all .2s; }
