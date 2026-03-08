@@ -1,5 +1,5 @@
 # COVR STUDIO
-### Single-file HTML magazine cover builder — no install, no server, no dependencies to manage.
+### Magazine cover builder — no install, no server, no dependencies to manage.
 
 ---
 
