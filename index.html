@@ -1,528 +1,456 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>COVR STUDIO</title>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300;1,600&display=swap" rel="stylesheet">
-    <link href="./styles.css" rel="stylesheet">
-</head>
-
-<body>
-
-    <header>
-        <div class="logo-text">COVR STUDIO</div>
-        <div class="tab-group">
+   <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>COVR STUDIO</title>
+      <link rel="icon" type="image/svg+xml" href="favicon.svg">
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300;1,600&display=swap" rel="stylesheet">
+      <link href="./styles.css" rel="stylesheet">
+   </head>
+   <body>
+      <header>
+         <div class="logo-text">COVR STUDIO</div>
+         <div class="tab-group">
             <button class="tab active" onclick="setView('all',event)">All Panels</button>
             <button class="tab" onclick="setView('front',event)">Front</button>
             <button class="tab" onclick="setView('spine',event)">Spine</button>
             <button class="tab" onclick="setView('back',event)">Back</button>
             <button class="tab tab-issues" onclick="setView('issues',event)" id="tab-issues">Issues</button>
-        </div>
-        <button class="dl-all" onclick="downloadAll()">↓ Download All</button>
-    </header>
-
-    <div class="storage-bar" id="storage-bar">
-        <span class="storage-bar-label">Saved</span>
-        <span class="storage-usage" id="storage-usage">—</span>
-        <div class="storage-bar-fill-wrap">
+         </div>
+         <button class="dl-all" onclick="downloadAll()">↓ Download All</button>
+      </header>
+      <div class="storage-bar" id="storage-bar">
+         <span class="storage-bar-label">Saved</span>
+         <span class="storage-usage" id="storage-usage">—</span>
+         <div class="storage-bar-fill-wrap">
             <div class="storage-bar-fill" id="storage-fill"></div>
-        </div>
-        <span class="storage-bar-label" id="storage-status">Not saved yet</span>
-        <div class="storage-bar-btns">
+         </div>
+         <span class="storage-bar-label" id="storage-status">Not saved yet</span>
+         <div class="storage-bar-btns">
             <button class="storage-btn save-now" onclick="saveNow()">Save Now</button>
             <button class="storage-btn" onclick="exportProject()">Export JSON</button>
             <button class="storage-btn" onclick="importProjectClick()">Import JSON</button>
             <input type="file" id="import-input" accept=".json" style="display:none" onchange="importProject(this)">
             <button class="storage-btn" onclick="clearSavedData()" style="border-color:#3a1a1a;color:#804040">Clear</button>
-        </div>
-    </div>
-
-    <div class="workspace">
-
-        <!-- ══ SIDEBAR ══ -->
-        <div class="sidebar">
-
+         </div>
+      </div>
+      <div class="workspace">
+         <!-- ══ SIDEBAR ══ -->
+         <div class="sidebar">
             <!-- IMAGES: FRONT -->
             <div class="section">
-                <div class="section-title">Front Images</div>
-
-                <label>Front Background</label>
-                <div class="upload-wrap" id="wrap-bgimg">
-                    <div class="upload-zone" id="zone-bgimg">
-                        <input type="file" accept="image/*" onchange="loadBgImage(this)">
-                        <span>Click or drop background</span>
-                        <img class="thumb" id="thumb-bgimg">
-                    </div>
-                    <div class="del-btn" onclick="clearImage('bgimg')">×</div>
-                </div>
-
-                <label>Main Cover Image (transparent OK)</label>
-                <div class="upload-wrap" id="wrap-main">
-                    <div class="upload-zone" id="zone-main">
-                        <input type="file" accept="image/*" onchange="loadCoverImage(this)">
-                        <span>Click or drop — PNG / transparent OK</span>
-                        <img class="thumb" id="thumb-main">
-                    </div>
-                    <div class="del-btn" onclick="clearImage('main')">×</div>
-                </div>
-
-                <label>Main Image Opacity</label>
-                <div class="range-row">
-                    <input type="range" min="0" max="100" value="100" oninput="setCoverOpacity(this.value)">
-                    <span class="range-val" id="opacity-val">100%</span>
-                </div>
-
-                <label>Main Image Position Y (%)</label>
-                <div class="range-row">
-                    <input type="range" min="0" max="100" value="50" oninput="setCoverPos(this.value)">
-                    <span class="range-val" id="pos-val">50%</span>
-                </div>
-
-                <label>Logo / Brand Mark</label>
-                <div class="upload-wrap" id="wrap-logo">
-                    <div class="upload-zone" id="zone-logo">
-                        <input type="file" accept="image/*" onchange="loadLogoImage(this)">
-                        <span>PNG with transparency recommended</span>
-                        <img class="thumb" id="thumb-logo">
-                    </div>
-                    <div class="del-btn" onclick="clearImage('logo')">×</div>
-                </div>
-                <span class="merge-badge">↑ Replaces text title on front cover when uploaded</span>
+               <div class="section-title">Front Images</div>
+               <label>Front Background</label>
+               <div class="upload-wrap" id="wrap-bgimg">
+                  <div class="upload-zone" id="zone-bgimg">
+                     <input type="file" accept="image/*" onchange="loadBgImage(this)">
+                     <span>Click or drop background</span>
+                     <img class="thumb" id="thumb-bgimg">
+                  </div>
+                  <div class="del-btn" onclick="clearImage('bgimg')">×</div>
+               </div>
+               <label>Main Cover Image (transparent OK)</label>
+               <div class="upload-wrap" id="wrap-main">
+                  <div class="upload-zone" id="zone-main">
+                     <input type="file" accept="image/*" onchange="loadCoverImage(this)">
+                     <span>Click or drop — PNG / transparent OK</span>
+                     <img class="thumb" id="thumb-main">
+                  </div>
+                  <div class="del-btn" onclick="clearImage('main')">×</div>
+               </div>
+               <label>Main Image Opacity</label>
+               <div class="range-row">
+                  <input type="range" min="0" max="100" value="100" oninput="setCoverOpacity(this.value)">
+                  <span class="range-val" id="opacity-val">100%</span>
+               </div>
+               <label>Main Image Position Y (%)</label>
+               <div class="range-row">
+                  <input type="range" min="0" max="100" value="50" oninput="setCoverPos(this.value)">
+                  <span class="range-val" id="pos-val">50%</span>
+               </div>
+               <label>Logo / Brand Mark</label>
+               <div class="upload-wrap" id="wrap-logo">
+                  <div class="upload-zone" id="zone-logo">
+                     <input type="file" accept="image/*" onchange="loadLogoImage(this)">
+                     <span>PNG with transparency recommended</span>
+                     <img class="thumb" id="thumb-logo">
+                  </div>
+                  <div class="del-btn" onclick="clearImage('logo')">×</div>
+               </div>
+               <span class="merge-badge">↑ Replaces text title on front cover when uploaded</span>
             </div>
-
             <!-- IMAGES: SPINE -->
             <div class="section">
-                <div class="section-title">Spine Images</div>
-
-                <label>Spine Background (full)</label>
-                <div class="upload-wrap" id="wrap-spinefull">
-                    <div class="upload-zone" id="zone-spinefull">
-                        <input type="file" accept="image/*" onchange="loadSpineFullImage(this)">
-                        <span>Covers entire spine</span>
-                        <img class="thumb" id="thumb-spinefull">
-                    </div>
-                    <div class="del-btn" onclick="clearImage('spinefull')">×</div>
-                </div>
-
-                <label>Spine Bottom Image (small emblem)</label>
-                <div class="upload-wrap" id="wrap-spinebottom">
-                    <div class="upload-zone" id="zone-spinebottom">
-                        <input type="file" accept="image/*" onchange="loadSpineBottomImage(this)">
-                        <span>Small icon above issue label</span>
-                        <img class="thumb" id="thumb-spinebottom">
-                    </div>
-                    <div class="del-btn" onclick="clearImage('spinebottom')">×</div>
-                </div>
+               <div class="section-title">Spine Images</div>
+               <label>Spine Background (full)</label>
+               <div class="upload-wrap" id="wrap-spinefull">
+                  <div class="upload-zone" id="zone-spinefull">
+                     <input type="file" accept="image/*" onchange="loadSpineFullImage(this)">
+                     <span>Covers entire spine</span>
+                     <img class="thumb" id="thumb-spinefull">
+                  </div>
+                  <div class="del-btn" onclick="clearImage('spinefull')">×</div>
+               </div>
+               <label>Spine Bottom Image (small emblem)</label>
+               <div class="upload-wrap" id="wrap-spinebottom">
+                  <div class="upload-zone" id="zone-spinebottom">
+                     <input type="file" accept="image/*" onchange="loadSpineBottomImage(this)">
+                     <span>Small icon above issue label</span>
+                     <img class="thumb" id="thumb-spinebottom">
+                  </div>
+                  <div class="del-btn" onclick="clearImage('spinebottom')">×</div>
+               </div>
             </div>
-
             <!-- IMAGES: BACK -->
             <div class="section">
-                <div class="section-title">Back Image</div>
-
-                <label>Back Cover Image</label>
-                <div class="upload-wrap" id="wrap-back">
-                    <div class="upload-zone" id="zone-back">
-                        <input type="file" accept="image/*" onchange="loadBackImage(this)">
-                        <span>Click or drop image</span>
-                        <img class="thumb" id="thumb-back">
-                    </div>
-                    <div class="del-btn" onclick="clearImage('back')">×</div>
-                </div>
+               <div class="section-title">Back Image</div>
+               <label>Back Cover Image</label>
+               <div class="upload-wrap" id="wrap-back">
+                  <div class="upload-zone" id="zone-back">
+                     <input type="file" accept="image/*" onchange="loadBackImage(this)">
+                     <span>Click or drop image</span>
+                     <img class="thumb" id="thumb-back">
+                  </div>
+                  <div class="del-btn" onclick="clearImage('back')">×</div>
+               </div>
             </div>
-
             <!-- GLOBAL: TITLE / ISSUE / DATE -->
             <div class="section">
-                <div class="section-title">Title, Issue &amp; Date — All Panels</div>
-
-                <label>Magazine Title</label>
-                <input type="text" id="input-title" value="VOGUE" oninput="setAllTitles(this.value)">
-                <span class="merge-badge">→ Front masthead · Spine · Back</span>
-
-                <label style="margin-top:14px">Current Issue</label>
-                <div class="issue-stepper">
-                    <button class="stepper-btn" onclick="stepIssue(-1)" title="Previous issue">‹</button>
-                    <div class="stepper-info" id="stepper-info">Issue 1 / 1</div>
-                    <button class="stepper-btn" onclick="stepIssue(1)" title="Next issue">›</button>
-                </div>
-                <span class="issue-count-badge" id="issue-count-badge">1 issue in project</span>
-
-                <label>Issue / Volume</label>
-                <input type="text" id="input-issue" value="Vol. 12" oninput="setAllIssues(this.value)">
-                <span class="merge-badge">→ Front top-left · Spine bottom</span>
-
-                <label>Date</label>
-                <input type="text" id="input-date" value="March 2026" oninput="setDate(this.value)">
-                <span class="merge-badge">→ Front top-right · Spine top</span>
-
-                <div style="display:flex;gap:6px;margin-top:12px">
-                    <button class="btn-secondary" style="flex:1;font-size:9px" onclick="setView('issues', {target: document.getElementById('tab-issues')})">Manage Issues ↗</button>
-                    <button class="btn-secondary" style="flex:1;font-size:9px" onclick="duplicateCurrentIssue()">Duplicate</button>
-                </div>
+               <div class="section-title">Title, Issue &amp; Date — All Panels</div>
+               <label>Magazine Title</label>
+               <input type="text" id="input-title" value="VOGUE" oninput="setAllTitles(this.value)">
+               <span class="merge-badge">→ Front masthead · Spine · Back</span>
+               <label style="margin-top:14px">Current Issue</label>
+               <div class="issue-stepper">
+                  <button class="stepper-btn" onclick="stepIssue(-1)" title="Previous issue">‹</button>
+                  <div class="stepper-info" id="stepper-info">Issue 1 / 1</div>
+                  <button class="stepper-btn" onclick="stepIssue(1)" title="Next issue">›</button>
+               </div>
+               <span class="issue-count-badge" id="issue-count-badge">1 issue in project</span>
+               <label>Issue / Volume</label>
+               <input type="text" id="input-issue" value="Vol. 12" oninput="setAllIssues(this.value)">
+               <span class="merge-badge">→ Front top-left · Spine bottom</span>
+               <label>Date</label>
+               <input type="text" id="input-date" value="March 2026" oninput="setDate(this.value)">
+               <span class="merge-badge">→ Front top-right · Spine top</span>
+               <div style="display:flex;gap:6px;margin-top:12px">
+                  <button class="btn-secondary" style="flex:1;font-size:9px" onclick="setView('issues', {target: document.getElementById('tab-issues')})">Manage Issues ↗</button>
+                  <button class="btn-secondary" style="flex:1;font-size:9px" onclick="duplicateCurrentIssue()">Duplicate</button>
+               </div>
             </div>
-
             <!-- FRONT COVER -->
             <div class="section">
-                <div class="section-title">Front Cover</div>
-
-                <label>Tagline</label>
-                <input type="text" value="The Definitive Voice of Fashion" oninput="setText('f-tagline',this.value)">
-
-                <label>Cover Headline</label>
-                <textarea oninput="setText('f-headline',this.value)">TIFA LOCKHART</textarea>
-
-                <label>Subheadline</label>
-                <textarea oninput="setText('f-sub',this.value)" style="height:52px">BORN TO SERVE, DESTINED TO CONQUER? UNCERTAIN FUTURE OF AN AVALANCHE QUEEN.</textarea>
-
-                <label>Bottom Teaser</label>
-                <input type="text" value="Beauty · Fashion · Desire · Culture · Art" oninput="setText('f-teaser',this.value)">
-
-                <label>Left Feature Callout</label>
-                <textarea oninput="setText('f-feat-left',this.value)" style="height:48px">SEVENTH HEAVEN EXCLUSIVE!</textarea>
-
-                <label>Right Feature Callout</label>
-                <textarea oninput="setText('f-feat-right',this.value)" style="height:48px">THE MATERIA MYSTERY REVEALED</textarea>
-
-                <label>Right Column 1 (vertical)</label>
-                <input type="text" value="黄金の誘惑" oninput="setText('f-vert-right',this.value)">
-
-                <label>Right Column 2 (vertical)</label>
-                <input type="text" value="ティファ・ロックハート" oninput="setText('f-vert-right2',this.value)">
-
-                <label>Front Price / Edition</label>
-                <input type="text" value="¥780 / DEC. 2023" oninput="setText('f-price-front',this.value)">
-
-                <label>Title Alignment</label>
-                <div class="align-btns" id="abtns-masthead">
-                    <button onclick="setAlign('f-masthead','left',this,'abtns-masthead')">L</button>
-                    <button class="asel" onclick="setAlign('f-masthead','center',this,'abtns-masthead')">C</button>
-                    <button onclick="setAlign('f-masthead','right',this,'abtns-masthead')">R</button>
-                    <button onclick="setAlign('f-masthead','justify',this,'abtns-masthead')">≡</button>
-                </div>
-
-                <label>Tagline Alignment</label>
-                <div class="align-btns" id="abtns-tagline">
-                    <button onclick="setAlign('f-tagline','left',this,'abtns-tagline')">L</button>
-                    <button class="asel" onclick="setAlign('f-tagline','center',this,'abtns-tagline')">C</button>
-                    <button onclick="setAlign('f-tagline','right',this,'abtns-tagline')">R</button>
-                    <button onclick="setAlign('f-tagline','justify',this,'abtns-tagline')">≡</button>
-                </div>
-
-                <label>Title Color</label>
-                <div class="row">
-                    <input type="color" id="title-color-picker" value="#ffffff" oninput="applyTitleColor(this.value,null)">
-                    <div class="color-row">
-                        <div class="swatch sel" style="background:#ffffff" onclick="applyTitleColor('#ffffff',this)"></div>
-                        <div class="swatch" style="background:#c8a96e" onclick="applyTitleColor('#c8a96e',this)"></div>
-                        <div class="swatch" style="background:#ff4466" onclick="applyTitleColor('#ff4466',this)"></div>
-                        <div class="swatch" style="background:#000;border:1px solid #444" onclick="applyTitleColor('#000000',this)"></div>
-                    </div>
-                </div>
-
-                <label>Overlay Intensity</label>
-                <div class="range-row">
-                    <input type="range" min="0" max="100" value="50" oninput="setOverlay(this.value)">
-                    <span class="range-val" id="ov-val">50%</span>
-                </div>
-
-                <label>Solid BG Color</label>
-                <input type="color" value="#1a1212" oninput="document.getElementById('lyr-solid-bg').style.background=this.value;S.frontBgColor=this.value">
+               <div class="section-title">Front Cover</div>
+               <label>Tagline</label>
+               <input type="text" id="si-f-tagline" value="The Definitive Voice of Fashion" oninput="setText('f-tagline',this.value)">
+               <label>Cover Headline</label>
+               <textarea id="si-f-headline" oninput="setText('f-headline',this.value)">TIFA LOCKHART</textarea>
+               <label>Subheadline</label>
+               <textarea id="si-f-sub" oninput="setText('f-sub',this.value)" style="height:52px">BORN TO SERVE, DESTINED TO CONQUER? UNCERTAIN FUTURE OF AN AVALANCHE QUEEN.</textarea>
+               <label>Bottom Teaser</label>
+               <input type="text" id="si-f-teaser" value="Beauty · Fashion · Desire · Culture · Art" oninput="setText('f-teaser',this.value)">
+               <label>Left Feature Callout</label>
+               <textarea id="si-f-feat-left" oninput="setText('f-feat-left',this.value)" style="height:48px">SEVENTH HEAVEN EXCLUSIVE!</textarea>
+               <label>Right Feature Callout</label>
+               <textarea id="si-f-feat-right" oninput="setText('f-feat-right',this.value)" style="height:48px">THE MATERIA MYSTERY REVEALED</textarea>
+               <label>Right Column 1 (vertical)</label>
+               <input type="text" id="si-f-vert-right" value="黄金の誘惑" oninput="setText('f-vert-right',this.value)">
+               <label>Right Column 2 (vertical)</label>
+               <input type="text" id="si-f-vert-right2" value="ティファ・ロックハート" oninput="setText('f-vert-right2',this.value)">
+               <label>Front Price / Edition</label>
+               <input type="text" id="si-f-price-front" value="¥780 / DEC. 2023" oninput="setText('f-price-front',this.value)">
+               <label>Title Alignment</label>
+               <div class="align-btns" id="abtns-masthead">
+                  <button onclick="setAlign('f-masthead','left',this,'abtns-masthead')">L</button>
+                  <button class="asel" onclick="setAlign('f-masthead','center',this,'abtns-masthead')">C</button>
+                  <button onclick="setAlign('f-masthead','right',this,'abtns-masthead')">R</button>
+                  <button onclick="setAlign('f-masthead','justify',this,'abtns-masthead')">≡</button>
+               </div>
+               <label>Tagline Alignment</label>
+               <div class="align-btns" id="abtns-tagline">
+                  <button onclick="setAlign('f-tagline','left',this,'abtns-tagline')">L</button>
+                  <button class="asel" onclick="setAlign('f-tagline','center',this,'abtns-tagline')">C</button>
+                  <button onclick="setAlign('f-tagline','right',this,'abtns-tagline')">R</button>
+                  <button onclick="setAlign('f-tagline','justify',this,'abtns-tagline')">≡</button>
+               </div>
+               <label>Title Color</label>
+               <div class="row">
+                  <input type="color" id="title-color-picker" value="#ffffff" oninput="applyTitleColor(this.value,null)">
+                  <div class="color-row">
+                     <div class="swatch sel" style="background:#ffffff" onclick="applyTitleColor('#ffffff',this)"></div>
+                     <div class="swatch" style="background:#c8a96e" onclick="applyTitleColor('#c8a96e',this)"></div>
+                     <div class="swatch" style="background:#ff4466" onclick="applyTitleColor('#ff4466',this)"></div>
+                     <div class="swatch" style="background:#000;border:1px solid #444" onclick="applyTitleColor('#000000',this)"></div>
+                  </div>
+               </div>
+               <label>Overlay Intensity</label>
+               <div class="range-row">
+                  <input type="range" min="0" max="100" value="50" oninput="setOverlay(this.value)">
+                  <span class="range-val" id="ov-val">50%</span>
+               </div>
+               <label>Solid BG Color</label>
+               <input type="color" value="#1a1212" oninput="document.getElementById('lyr-solid-bg').style.background=this.value;S.frontBgColor=this.value">
             </div>
-
             <!-- SPINE -->
             <div class="section">
-                <div class="section-title">Spine</div>
-
-                <label>Spine BG Color</label>
-                <input type="color" value="#111111" oninput="setSpineBg(this.value)">
-
-                <label>Spine Text Color</label>
-                <input type="color" value="#ffffff" oninput="setSpineColor(this.value)">
-
-                <label>Issue / Volume Rotation</label>
-                <select id="spine-issue-rot" onchange="setSpineIssueRot(this.value)">
-                    <option value="cw">Along spine ↓ (top to bottom)</option>
-                    <option value="ccw">Along spine ↑ (bottom to top)</option>
-                    <option value="horiz">Horizontal (across width)</option>
-                </select>
-
-                <div class="checkbox-row" style="margin-top:10px">
-                    <input type="checkbox" id="spine-hide-date" onchange="setSpineHideDate(this.checked)">
-                    <span>Hide date from spine</span>
-                </div>
+               <div class="section-title">Spine</div>
+               <label>Spine BG Color</label>
+               <input type="color" value="#111111" oninput="setSpineBg(this.value)">
+               <label>Spine Text Color</label>
+               <input type="color" value="#ffffff" oninput="setSpineColor(this.value)">
+               <label>Issue / Volume Rotation</label>
+               <select id="spine-issue-rot" onchange="setSpineIssueRot(this.value)">
+                  <option value="cw">Along spine ↓ (top to bottom)</option>
+                  <option value="ccw">Along spine ↑ (bottom to top)</option>
+                  <option value="horiz">Horizontal (across width)</option>
+               </select>
+               <div class="checkbox-row" style="margin-top:10px">
+                  <input type="checkbox" id="spine-hide-date" onchange="setSpineHideDate(this.checked)">
+                  <span>Hide date from spine</span>
+               </div>
             </div>
-
             <!-- BACK COVER -->
             <div class="section">
-                <div class="section-title">Back Cover</div>
-
-                <label>Back Tagline</label>
-                <input type="text" value="Power. Beauty. Truth." oninput="setText('b-tagline',this.value)">
-
-                <label>Blurb / Description</label>
-                <textarea oninput="setText('b-blurb',this.value)">The world's leading fashion authority since 1892. Redefining elegance, one page at a time.</textarea>
-
-                <label>Website</label>
-                <input type="text" value="www.vogue.com" oninput="setText('b-website',this.value)">
-
-                <label>Price / Edition</label>
-                <input type="text" value="$9.99 USD · €8.50 EUR · £7.99 GBP" oninput="setText('b-price',this.value)">
-
-                <label>Legal Text</label>
-                <textarea oninput="setText('b-legal',this.value)" style="height:44px">© 2026 Condé Nast. All rights reserved.</textarea>
-
-                <label>Back Cover Tint</label>
-                <input type="color" value="#0d0d0d" oninput="document.getElementById('lyr-back-solid').style.background=this.value;S.backBgColor=this.value">
+               <div class="section-title">Back Cover</div>
+               <label>Back Tagline</label>
+               <input type="text" id="si-b-tagline" value="Power. Beauty. Truth." oninput="setText('b-tagline',this.value)">
+               <label>Blurb / Description</label>
+               <textarea id="si-b-blurb" oninput="setText('b-blurb',this.value)">The world's leading fashion authority since 1892. Redefining elegance, one page at a time.</textarea>
+               <label>Website</label>
+               <input type="text" id="si-b-website" value="www.vogue.com" oninput="setText('b-website',this.value)">
+               <label>Price / Edition</label>
+               <input type="text" id="si-b-price" value="$9.99 USD · €8.50 EUR · £7.99 GBP" oninput="setText('b-price',this.value)">
+               <label>Legal Text</label>
+               <textarea id="si-b-legal" oninput="setText('b-legal',this.value)" style="height:44px">© 2026 Condé Nast. All rights reserved.</textarea>
+               <label>Back Cover Tint</label>
+               <input type="color" value="#0d0d0d" oninput="document.getElementById('lyr-back-solid').style.background=this.value;S.backBgColor=this.value">
             </div>
-
             <!-- STYLE -->
             <div class="section">
-                <div class="section-title">Style</div>
-
-                <label>Title Font</label>
-                <select onchange="setTitleFont(this.value)">
-                    <option value="Bebas Neue">Bebas Neue</option>
-                    <option value="Playfair Display">Playfair Display</option>
-                    <option value="Cormorant Garamond">Cormorant Garamond</option>
-                </select>
-
-                <div class="checkbox-row">
-                    <input type="checkbox" id="show-barcode" checked onchange="toggleBarcode(this.checked)">
-                    <span>Show Barcode</span>
-                </div>
+               <div class="section-title">Style</div>
+               <label>Title Font</label>
+               <select onchange="setTitleFont(this.value)">
+                  <option value="Bebas Neue">Bebas Neue</option>
+                  <option value="Playfair Display">Playfair Display</option>
+                  <option value="Cormorant Garamond">Cormorant Garamond</option>
+               </select>
+               <div class="checkbox-row">
+                  <input type="checkbox" id="show-barcode" checked onchange="toggleBarcode(this.checked)">
+                  <span>Show Barcode</span>
+               </div>
             </div>
-
             <!-- OUTPUT SIZE -->
             <div class="section">
-                <div class="section-title">Output Size &amp; Resolution</div>
-
-                <label>Magazine Size</label>
-                <select id="mag-size-sel" onchange="setMagSize(this.value)">
-                    <optgroup label="International">
-                        <option value="a4">A4 — 210 × 297 mm</option>
-                        <option value="a5">A5 — 148 × 210 mm</option>
-                        <option value="a3">A3 — 297 × 420 mm</option>
-                    </optgroup>
-                    <optgroup label="North America">
-                        <option value="letter" selected>Letter — 8.5 × 11 in</option>
-                        <option value="us_mag">US Magazine — 8.375 × 10.875 in</option>
-                        <option value="us_digest">US Digest — 5.5 × 8.5 in</option>
-                        <option value="tabloid">Tabloid — 11 × 17 in</option>
-                    </optgroup>
-                    <optgroup label="Europe / UK">
-                        <option value="uk_mag">UK Standard — 210 × 276 mm</option>
-                        <option value="b5">B5 — 176 × 250 mm</option>
-                    </optgroup>
-                    <optgroup label="Asia / Japan">
-                        <option value="b5_jis">B5 JIS — 182 × 257 mm</option>
-                        <option value="b4_jis">B4 JIS — 257 × 364 mm</option>
-                    </optgroup>
-                    <optgroup label="Square / Other">
-                        <option value="sq210">Square 210 — 210 × 210 mm</option>
-                        <option value="sq300">Square 300 — 300 × 300 mm</option>
-                    </optgroup>
-                </select>
-
-                <label>Resolution (DPI)</label>
-                <select id="dpi-sel" onchange="setDpi(this.value)">
-                    <option value="72">72 dpi — Screen / Web</option>
-                    <option value="96">96 dpi — Screen HD</option>
-                    <option value="150">150 dpi — Low print</option>
-                    <option value="300" selected>300 dpi — Print standard</option>
-                    <option value="400">400 dpi — High print</option>
-                    <option value="600">600 dpi — Premium print</option>
-                </select>
-
-                <div class="output-info" id="output-info">
-                    <div class="output-info-row">
-                        <span class="output-info-label">Front / Back</span>
-                        <span class="output-info-val" id="info-frontback">—</span>
-                    </div>
-                    <div class="output-info-row">
-                        <span class="output-info-label">Spine</span>
-                        <span class="output-info-val" id="info-spine">—</span>
-                    </div>
-                    <div class="output-info-row">
-                        <span class="output-info-label">Total spread</span>
-                        <span class="output-info-val" id="info-spread">—</span>
-                    </div>
-                </div>
+               <div class="section-title">Output Size &amp; Resolution</div>
+               <label>Magazine Size</label>
+               <select id="mag-size-sel" onchange="setMagSize(this.value)">
+                  <optgroup label="International">
+                     <option value="a4">A4 — 210 × 297 mm</option>
+                     <option value="a5">A5 — 148 × 210 mm</option>
+                     <option value="a3">A3 — 297 × 420 mm</option>
+                  </optgroup>
+                  <optgroup label="North America">
+                     <option value="letter" selected>Letter — 8.5 × 11 in</option>
+                     <option value="us_mag">US Magazine — 8.375 × 10.875 in</option>
+                     <option value="us_digest">US Digest — 5.5 × 8.5 in</option>
+                     <option value="tabloid">Tabloid — 11 × 17 in</option>
+                  </optgroup>
+                  <optgroup label="Europe / UK">
+                     <option value="uk_mag">UK Standard — 210 × 276 mm</option>
+                     <option value="b5">B5 — 176 × 250 mm</option>
+                  </optgroup>
+                  <optgroup label="Asia / Japan">
+                     <option value="b5_jis">B5 JIS — 182 × 257 mm</option>
+                     <option value="b4_jis">B4 JIS — 257 × 364 mm</option>
+                  </optgroup>
+                  <optgroup label="Square / Other">
+                     <option value="sq210">Square 210 — 210 × 210 mm</option>
+                     <option value="sq300">Square 300 — 300 × 300 mm</option>
+                  </optgroup>
+               </select>
+               <label>Resolution (DPI)</label>
+               <select id="dpi-sel" onchange="setDpi(this.value)">
+                  <option value="72">72 dpi — Screen / Web</option>
+                  <option value="96">96 dpi — Screen HD</option>
+                  <option value="150">150 dpi — Low print</option>
+                  <option value="300" selected>300 dpi — Print standard</option>
+                  <option value="400">400 dpi — High print</option>
+                  <option value="600">600 dpi — Premium print</option>
+               </select>
+               <div class="output-info" id="output-info">
+                  <div class="output-info-row">
+                     <span class="output-info-label">Front / Back</span>
+                     <span class="output-info-val" id="info-frontback">—</span>
+                  </div>
+                  <div class="output-info-row">
+                     <span class="output-info-label">Spine</span>
+                     <span class="output-info-val" id="info-spine">—</span>
+                  </div>
+                  <div class="output-info-row">
+                     <span class="output-info-label">Total spread</span>
+                     <span class="output-info-val" id="info-spread">—</span>
+                  </div>
+               </div>
             </div>
-
             <!-- TRANSLATE -->
             <div class="section">
-                <div class="section-title">Translate Cover Text</div>
-                <label style="margin-top:0">Target Language</label>
-                <div class="lang-btns">
-                    <button class="lang-btn" onclick="translateCover('en',this)">🇬🇧 English</button>
-                    <button class="lang-btn" onclick="translateCover('de',this)">🇩🇪 German</button>
-                    <button class="lang-btn" onclick="translateCover('ja',this)">🇯🇵 Japanese</button>
-                    <button class="lang-btn" onclick="translateCover('fr',this)">🇫🇷 French</button>
-                    <button class="lang-btn" onclick="translateCover('es',this)">🇪🇸 Spanish</button>
-                </div>
-                <span class="translate-status" id="translate-status"></span>
+               <div class="section-title">Translate Cover Text</div>
+               <label style="margin-top:0">Target Language</label>
+               <div class="lang-btns">
+                  <button class="lang-btn" onclick="translateCover('en',this)">🇬🇧 English</button>
+                  <button class="lang-btn" onclick="translateCover('de',this)">🇩🇪 German</button>
+                  <button class="lang-btn" onclick="translateCover('ja',this)">🇯🇵 Japanese</button>
+                  <button class="lang-btn" onclick="translateCover('fr',this)">🇫🇷 French</button>
+                  <button class="lang-btn" onclick="translateCover('es',this)">🇪🇸 Spanish</button>
+               </div>
+               <span class="translate-status" id="translate-status"></span>
             </div>
-
-        </div>
-        <!-- /sidebar -->
-
-        <!-- ══ CANVAS ══ -->
-        <div class="canvas-area">
-
+         </div>
+         <!-- /sidebar -->
+         <!-- ══ CANVAS ══ -->
+         <div class="canvas-area">
             <!-- FRONT -->
             <div class="panel-wrap" id="wrap-front-panel">
-                <div class="panel-sizer" id="sizer-front">
-                    <div class="cover-front" id="cover-front">
-                        <div class="lyr lyr-solid-bg" id="lyr-solid-bg"></div>
-                        <div class="lyr lyr-bg-img" id="lyr-bg-img"></div>
-                        <div class="lyr lyr-main-img" id="lyr-main-img"></div>
-                        <div class="lyr lyr-overlay" id="lyr-overlay"></div>
-                        <div class="f-issue" id="f-issue" contenteditable="true">Vol. 12</div>
-                        <div class="f-date" id="f-date" contenteditable="true">March 2026</div>
-                        <div class="f-masthead" id="f-masthead" contenteditable="true">VOGUE</div>
-                        <img class="f-logo-img" id="f-logo-img" alt="logo">
-                        <div class="f-tagline" id="f-tagline" contenteditable="true">The Definitive Voice of Fashion</div>
-                        <div class="f-vert-right" id="f-vert-right" contenteditable="true">黄金の誘惑</div>
-                        <div class="f-vert-right2" id="f-vert-right2" contenteditable="true">ティファ・ロックハート</div>
-                        <div class="f-headline" id="f-headline" contenteditable="true">TIFA LOCKHART</div>
-                        <div class="f-sub" id="f-sub" contenteditable="true">BORN TO SERVE, DESTINED TO CONQUER? UNCERTAIN FUTURE OF AN AVALANCHE QUEEN.</div>
-                        <div class="f-teaser" id="f-teaser" contenteditable="true">Beauty · Fashion · Desire · Culture · Art</div>
-                        <div class="f-feat-left" id="f-feat-left" contenteditable="true">SEVENTH HEAVEN EXCLUSIVE!</div>
-                        <div class="f-feat-right" id="f-feat-right" contenteditable="true">THE MATERIA MYSTERY REVEALED</div>
-                        <div class="f-price-front" id="f-price-front" contenteditable="true">¥780 / DEC. 2023</div>
-                        <div class="f-barcode" id="f-barcode">
-                            <svg id="bc-svg-front"></svg>
-                        </div>
-                    </div>
-                </div>
-                <button class="dl-btn" onclick="downloadFront()">↓ Download Front</button>
+               <div class="panel-sizer" id="sizer-front">
+                  <div class="cover-front" id="cover-front">
+                     <div class="lyr lyr-solid-bg" id="lyr-solid-bg"></div>
+                     <div class="lyr lyr-bg-img"   id="lyr-bg-img"></div>
+                     <div class="lyr lyr-main-img" id="lyr-main-img"></div>
+                     <div class="lyr lyr-overlay"  id="lyr-overlay"></div>
+                     <div class="f-issue"    id="f-issue"    contenteditable="true">Vol. 12</div>
+                     <div class="f-date"     id="f-date"     contenteditable="true">March 2026</div>
+                     <div class="f-masthead" id="f-masthead" contenteditable="true">VOGUE</div>
+                     <img class="f-logo-img" id="f-logo-img" alt="logo">
+                     <div class="f-tagline"   id="f-tagline"   contenteditable="true">The Definitive Voice of Fashion</div>
+                     <div class="f-vert-right"  id="f-vert-right"  contenteditable="true">黄金の誘惑</div>
+                     <div class="f-vert-right2" id="f-vert-right2" contenteditable="true">ティファ・ロックハート</div>
+                     <div class="f-headline" id="f-headline" contenteditable="true">TIFA LOCKHART</div>
+                     <div class="f-sub"      id="f-sub"      contenteditable="true">BORN TO SERVE, DESTINED TO CONQUER? UNCERTAIN FUTURE OF AN AVALANCHE QUEEN.</div>
+                     <div class="f-teaser"   id="f-teaser"   contenteditable="true">Beauty · Fashion · Desire · Culture · Art</div>
+                     <div class="f-feat-left"  id="f-feat-left"  contenteditable="true">SEVENTH HEAVEN EXCLUSIVE!</div>
+                     <div class="f-feat-right" id="f-feat-right" contenteditable="true">THE MATERIA MYSTERY REVEALED</div>
+                     <div class="f-price-front" id="f-price-front" contenteditable="true">¥780 / DEC. 2023</div>
+                     <div class="f-barcode"  id="f-barcode">
+                        <svg id="bc-svg-front"></svg>
+                     </div>
+                  </div>
+               </div>
+               <button class="dl-btn" onclick="downloadFront()">↓ Download Front</button>
             </div>
-
             <!-- SPINE -->
             <div class="panel-wrap" id="wrap-spine">
-                <div class="panel-sizer" id="sizer-spine">
-                    <div class="cover-spine" id="cover-spine">
-                        <canvas id="spine-canvas" width="28" height="560"></canvas>
-                    </div>
-                </div>
-                <button class="dl-btn" onclick="downloadSpine()">↓ Download Spine</button>
+               <div class="panel-sizer" id="sizer-spine">
+                  <div class="cover-spine" id="cover-spine">
+                     <canvas id="spine-canvas" width="28" height="560"></canvas>
+                  </div>
+               </div>
+               <button class="dl-btn" onclick="downloadSpine()">↓ Download Spine</button>
             </div>
-
             <!-- BACK -->
             <div class="panel-wrap" id="wrap-back-panel">
-                <div class="panel-sizer" id="sizer-back">
-                    <div class="cover-back" id="cover-back">
-                        <div class="lyr lyr-back-solid" id="lyr-back-solid"></div>
-                        <div class="lyr lyr-back-img" id="lyr-back-img"></div>
-                        <div class="lyr lyr-back-ov"></div>
-                        <div class="b-brand" id="b-brand" contenteditable="true">VOGUE</div>
-                        <div class="b-tagline" id="b-tagline" contenteditable="true">Power. Beauty. Truth.</div>
-                        <div class="b-blurb" id="b-blurb" contenteditable="true">The world's leading fashion authority since 1892. Redefining elegance, one page at a time.</div>
-                        <div class="b-website" id="b-website" contenteditable="true">www.vogue.com</div>
-                        <div class="b-price" id="b-price" contenteditable="true">$9.99 USD · €8.50 EUR · £7.99 GBP</div>
-                        <div class="b-legal" id="b-legal" contenteditable="true">© 2026 Condé Nast. All rights reserved.</div>
-                    </div>
-                </div>
-                <button class="dl-btn" onclick="downloadBack()">↓ Download Back</button>
+               <div class="panel-sizer" id="sizer-back">
+                  <div class="cover-back" id="cover-back">
+                     <div class="lyr lyr-back-solid" id="lyr-back-solid"></div>
+                     <div class="lyr lyr-back-img"   id="lyr-back-img"></div>
+                     <div class="lyr lyr-back-ov"></div>
+                     <div class="b-brand"   id="b-brand"   contenteditable="true">VOGUE</div>
+                     <div class="b-tagline" id="b-tagline" contenteditable="true">Power. Beauty. Truth.</div>
+                     <div class="b-blurb"   id="b-blurb"   contenteditable="true">The world's leading fashion authority since 1892. Redefining elegance, one page at a time.</div>
+                     <div class="b-website" id="b-website" contenteditable="true">www.vogue.com</div>
+                     <div class="b-price"   id="b-price"   contenteditable="true">$9.99 USD · €8.50 EUR · £7.99 GBP</div>
+                     <div class="b-legal"   id="b-legal"   contenteditable="true">© 2026 Condé Nast. All rights reserved.</div>
+                  </div>
+               </div>
+               <button class="dl-btn" onclick="downloadBack()">↓ Download Back</button>
             </div>
-
-        </div>
-    </div>
-    <!-- /workspace -->
-
-    <!-- ══ ISSUES PANEL ══ -->
-    <div class="issues-panel" id="issues-panel">
-        <div class="issues-toolbar">
+         </div>
+      </div>
+      <!-- /workspace -->
+      <!-- ══ ISSUES PANEL ══ -->
+      <div class="issues-panel" id="issues-panel">
+         <div class="issues-toolbar">
             <h2>Issues</h2>
             <button class="btn-secondary" onclick="openSeriesDialog()">⊕ Generate Series</button>
             <button class="btn-primary" onclick="addNewIssue()">+ New Issue</button>
-        </div>
-        <div class="issues-grid" id="issues-grid"></div>
-    </div>
-
-    <!-- ══ SERIES DIALOG ══ -->
-    <div class="dialog-overlay" id="series-dialog" style="display:none" onclick="if(event.target===this)closeSeriesDialog()">
-        <div class="dialog">
+         </div>
+         <div class="issues-grid" id="issues-grid"></div>
+      </div>
+      <!-- ══ SERIES DIALOG ══ -->
+      <div class="dialog-overlay" id="series-dialog" style="display:none" onclick="if(event.target===this)closeSeriesDialog()">
+         <div class="dialog">
             <h3>Generate Issue Series</h3>
             <div class="dialog-grid">
-                <div>
-                    <label>Start Volume #</label>
-                    <input type="text" id="gen-vol-start" value="1">
-                </div>
-                <div>
-                    <label>Number of Issues</label>
-                    <input type="text" id="gen-count" value="6">
-                </div>
-                <div>
-                    <label>Start Month</label>
-                    <select id="gen-month">
-                        <option value="0">January</option>
-                        <option value="1">February</option>
-                        <option value="2">March</option>
-                        <option value="3">April</option>
-                        <option value="4">May</option>
-                        <option value="5">June</option>
-                        <option value="6">July</option>
-                        <option value="7">August</option>
-                        <option value="8">September</option>
-                        <option value="9">October</option>
-                        <option value="10">November</option>
-                        <option value="11">December</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Start Year</label>
-                    <input type="text" id="gen-year" value="2026">
-                </div>
-                <div>
-                    <label>Release Cadence</label>
-                    <select id="gen-cadence">
-                        <option value="1">Monthly</option>
-                        <option value="2">Bi-monthly</option>
-                        <option value="3">Quarterly</option>
-                        <option value="6">Bi-annually</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Volume Label</label>
-                    <select id="gen-vol-style">
-                        <option value="vol">Vol. N</option>
-                        <option value="no">No. N</option>
-                        <option value="issue">Issue N</option>
-                        <option value="num">#N</option>
-                    </select>
-                </div>
+               <div>
+                  <label>Start Volume #</label>
+                  <input type="text" id="gen-vol-start" value="1">
+               </div>
+               <div>
+                  <label>Number of Issues</label>
+                  <input type="text" id="gen-count" value="6">
+               </div>
+               <div>
+                  <label>Start Month</label>
+                  <select id="gen-month">
+                     <option value="0">January</option>
+                     <option value="1">February</option>
+                     <option value="2">March</option>
+                     <option value="3">April</option>
+                     <option value="4">May</option>
+                     <option value="5">June</option>
+                     <option value="6">July</option>
+                     <option value="7">August</option>
+                     <option value="8">September</option>
+                     <option value="9">October</option>
+                     <option value="10">November</option>
+                     <option value="11">December</option>
+                  </select>
+               </div>
+               <div>
+                  <label>Start Year</label>
+                  <input type="text" id="gen-year" value="2026">
+               </div>
+               <div>
+                  <label>Release Cadence</label>
+                  <select id="gen-cadence">
+                     <option value="1">Monthly</option>
+                     <option value="2">Bi-monthly</option>
+                     <option value="3">Quarterly</option>
+                     <option value="6">Bi-annually</option>
+                  </select>
+               </div>
+               <div>
+                  <label>Volume Label</label>
+                  <select id="gen-vol-style">
+                     <option value="vol">Vol. N</option>
+                     <option value="no">No. N</option>
+                     <option value="issue">Issue N</option>
+                     <option value="num">#N</option>
+                  </select>
+               </div>
             </div>
             <div class="dialog-btns">
-                <button class="btn-secondary" onclick="closeSeriesDialog()">Cancel</button>
-                <button class="btn-primary" onclick="generateSeries()">Generate</button>
+               <button class="btn-secondary" onclick="closeSeriesDialog()">Cancel</button>
+               <button class="btn-primary" onclick="generateSeries()">Generate</button>
             </div>
-        </div>
-    </div>
-
-    <div class="active-label" id="active-label">Click any text on the cover to edit inline</div>
-
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script src="./app.js"></script>
-
-    <!-- ══ TOAST ══ -->
-    <div class="toast" id="toast"></div>
-
-    <!-- ══ RESTORE DIALOG ══ -->
-    <div class="restore-overlay" id="restore-overlay" style="display:none">
-        <div class="restore-dialog">
+         </div>
+      </div>
+      <div class="active-label" id="active-label">Click any text on the cover to edit inline</div>
+      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+      <script src="./app.js"></script>
+      <!-- ══ TOAST ══ -->
+      <div class="toast" id="toast"></div>
+      <!-- ══ RESTORE DIALOG ══ -->
+      <div class="restore-overlay" id="restore-overlay" style="display:none">
+         <div class="restore-dialog">
             <h3>Restore Session?</h3>
             <p>A saved project was found in your browser storage.</p>
             <div class="rinfo" id="restore-info">—</div>
             <div class="restore-btns">
-                <button class="btn-secondary" onclick="discardRestore()">Start Fresh</button>
-                <button class="btn-primary" onclick="confirmRestore()">Restore Project</button>
+               <button class="btn-secondary" onclick="discardRestore()">Start Fresh</button>
+               <button class="btn-primary" onclick="confirmRestore()">Restore Project</button>
             </div>
-        </div>
-    </div>
-
-</body>
-
+         </div>
+      </div>
+   </body>
 </html>
