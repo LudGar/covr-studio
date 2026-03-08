@@ -38,11 +38,10 @@ function snapshotCurrentIssue() {
   snap.domText = {};
   ISSUE_TEXT_FIELDS.forEach(id => {
     const el = document.getElementById(id);
-    snap.domText[id] = el ? el.textContent : '';
+    snap.domText[id] = el ? (el.innerText || el.textContent || '') : '';
   });
   snap.titleColor   = document.getElementById('f-masthead')?.style.color || '#fff';
   snap.mastheadFont = document.getElementById('f-masthead')?.style.fontFamily || '';
-  // Deep-copy current image data URLs
   snap.imageData = { ...S.imageData };
   return snap;
 }
@@ -59,11 +58,14 @@ function applyIssueSnapshot(snap) {
 
   if (snap.domText) {
     ISSUE_TEXT_FIELDS.forEach(id => {
+      const val = snap.domText[id];
+      if (val === undefined) return;
+      // Update cover contenteditable (innerText preserves line breaks)
       const el = document.getElementById(id);
-      if (el && snap.domText[id] !== undefined) el.textContent = snap.domText[id];
-      // Sync corresponding sidebar input if it has id="inp-{id}"
-      const inp = document.getElementById('inp-' + id);
-      if (inp && snap.domText[id] !== undefined) inp.value = snap.domText[id];
+      if (el) el.innerText = val;
+      // Sync sidebar input (id="si-{id}")
+      const si = document.getElementById('si-' + id);
+      if (si) si.value = val;
     });
   }
 
@@ -77,7 +79,6 @@ function applyIssueSnapshot(snap) {
   const spineHideCB = document.getElementById('spine-hide-date');
   if (spineHideCB) spineHideCB.checked = !!snap.spineHideDate;
 
-  // Restore images from stored data URLs
   S.imageData = { bgimg:null, main:null, logo:null, back:null, spinefull:null, spinebottom:null, ...(snap.imageData||{}) };
   restoreAllImages(S.imageData);
 
@@ -696,9 +697,39 @@ function clearImage(key) {
 // ══════════════════════════════════════════════
 //  TEXT + STATE SETTERS
 // ══════════════════════════════════════════════
+// Map of cover element IDs that have a matching sidebar input (id="si-{coverId}")
+const SIDEBAR_SYNCED_IDS = new Set([
+  'f-tagline','f-headline','f-sub','f-teaser',
+  'f-feat-left','f-feat-right','f-vert-right','f-vert-right2','f-price-front',
+  'b-tagline','b-blurb','b-website','b-price','b-legal'
+]);
+
+// Whether the sidebar input for this id is a <textarea> (preserves newlines) or <input>
+const MULTILINE_IDS = new Set([
+  'f-headline','f-sub','f-feat-left','f-feat-right','b-blurb','b-legal'
+]);
+
 function setText(id, val) {
   const el = document.getElementById(id);
-  if (el && document.activeElement !== el) el.textContent = val;
+  if (el && document.activeElement !== el) {
+    // Use innerText so \n becomes a visible line break in contenteditable
+    el.innerText = val;
+  }
+  // Sync sidebar input if it's not the one being typed in
+  const si = document.getElementById('si-' + id);
+  if (si && document.activeElement !== si) {
+    si.value = val;
+  }
+}
+
+// Called from cover contenteditable 'input' events — pushes cover text to sidebar
+function syncToSidebar(id) {
+  if (!SIDEBAR_SYNCED_IDS.has(id)) return;
+  const el = document.getElementById(id);
+  const si = document.getElementById('si-' + id);
+  if (!el || !si || document.activeElement === si) return;
+  // Use innerText to preserve line breaks for textareas
+  si.value = el.innerText || el.textContent || '';
 }
 
 // Auto-shrink font until text fits on one line within the element's box
@@ -1106,7 +1137,6 @@ async function renderFrontToCanvas(outW, outH) {
   await document.fonts.ready;
 
   // ONE global scale: design-space pixels → output pixels
-  // Everything drawn below uses DESIGN coordinates
   ctx.scale(W / DW, H / DH);
 
   // ── 1. BG solid ──
@@ -1129,38 +1159,86 @@ async function renderFrontToCanvas(outW, outH) {
   ctx.fillStyle = grad; ctx.fillRect(0, 0, DW, DH);
 
   // ── Layout helpers ──
-  // el.offsetLeft/Top/Width/Height are CSS-transform-independent layout values
-  // relative to offsetParent (the cover div = DW×DH). They ARE our design coords.
-  // getComputedStyle().font uses CSS px font-size, also unaffected by parent transforms.
+  // offsetLeft/Top/Width/Height live in CSS layout px = design px, unaffected by parent CSS transforms
   function dRect(el) {
     return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
   }
-  // For elements with transform:translateY(-50%) (f-headline), adjust y by the translateY
+  // For elements with transform:translateY(-50%), read the actual matrix translateY
   function dRectTY(el) {
     const r = dRect(el);
     const tf = getComputedStyle(el).transform;
     if (tf && tf !== 'none') {
       const m = tf.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,[^,]+,\s*([-\d.]+)\)/);
-      if (m) r.y += parseFloat(m[1]); // CSS px translateY = design px
+      if (m) r.y += parseFloat(m[1]);
     }
     return r;
   }
 
+  // Apply CSS text-transform to a string
+  function applyTT(text, cs) {
+    const tt = cs.textTransform;
+    if (tt === 'uppercase')  return text.toUpperCase();
+    if (tt === 'lowercase')  return text.toLowerCase();
+    if (tt === 'capitalize') return text.replace(/\b\w/g, ch => ch.toUpperCase());
+    return text;
+  }
+
+  // Set ctx.letterSpacing when browser supports it (Chrome 99+, Firefox 113+, Safari 16.4+)
+  function applyLS(cs) {
+    if ('letterSpacing' in ctx) ctx.letterSpacing = cs.letterSpacing || '0px';
+  }
+
+  // Measure text respecting letter-spacing even in browsers without ctx.letterSpacing
+  function measureW(text, cs) {
+    let w = ctx.measureText(text).width;
+    if (!('letterSpacing' in ctx)) {
+      const ls = parseFloat(cs.letterSpacing) || 0;
+      if (ls && text.length > 1) w += ls * (text.length - 1);
+    }
+    return w;
+  }
+
+  // Word-wrap that respects explicit \n breaks from contenteditable innerText,
+  // letter-spacing-aware measuring, and a max width in design px
+  function wrapLines(text, maxW, cs) {
+    const result = [];
+    for (const para of text.split('\n')) {
+      if (!para.trim()) { result.push(''); continue; }
+      const words = para.split(' ');
+      let cur = '';
+      for (const word of words) {
+        if (!word) continue;
+        const test = cur ? cur + ' ' + word : word;
+        if (measureW(test, cs) > maxW && cur) { result.push(cur); cur = word; }
+        else cur = test;
+      }
+      if (cur) result.push(cur);
+    }
+    return result.length ? result : [''];
+  }
+
+  // Full paintEl: innerText → text-transform → letterSpacing → line-wrap → draw
   function paintEl(id, defaultAlign, transformed) {
     const el = document.getElementById(id);
     if (!el || el.style.display === 'none') return;
-    const cs = getComputedStyle(el);
-    const dr = transformed ? dRectTY(el) : dRect(el);
+    const cs   = getComputedStyle(el);
+    const dr   = transformed ? dRectTY(el) : dRect(el);
+    // innerText preserves <br> / contenteditable line breaks; textContent collapses them
+    const text = applyTT((el.innerText || el.textContent || '').trimEnd(), cs);
+    if (!text) return;
     ctx.save();
-    ctx.font      = cs.font;       // CSS px font = design px ✓
-    ctx.fillStyle = cs.color;
+    ctx.font         = cs.font;
+    ctx.fillStyle    = cs.color;
     ctx.textBaseline = 'top';
-    const align  = cs.textAlign || defaultAlign || 'left';
+    applyLS(cs);
+    const align = cs.textAlign || defaultAlign || 'left';
     ctx.textAlign = align;
-    const drawX  = align === 'center' ? dr.x + dr.w/2 : align === 'right' ? dr.x + dr.w : dr.x;
-    const lineH  = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
-    wrapText(ctx, el.textContent || '', dr.w)
-      .forEach((line, i) => ctx.fillText(line, drawX, dr.y + i * lineH));
+    const drawX = align === 'center' ? dr.x + dr.w / 2
+                : align === 'right'  ? dr.x + dr.w
+                : dr.x;
+    const lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
+    wrapLines(text, dr.w, cs).forEach((line, i) =>
+      ctx.fillText(line, drawX, dr.y + i * lineH));
     ctx.restore();
   }
 
@@ -1178,38 +1256,58 @@ async function renderFrontToCanvas(outW, outH) {
     paintEl('f-masthead', S.frontAlign || 'center');
   }
 
-  paintEl('f-tagline',    S.taglineAlign || 'center');
-  paintEl('f-headline',   'left', true);   // has translateY(-50%)
-  paintEl('f-sub',        'left');
-  paintEl('f-feat-left',  'left');
-  paintEl('f-feat-right', 'right');
-  paintEl('f-price-front','left');
+  paintEl('f-tagline',     S.taglineAlign || 'center');
+  paintEl('f-headline',    'left', true);  // translateY(-50%)
+  paintEl('f-sub',         'left');
+  paintEl('f-feat-left',   'left');
+  paintEl('f-feat-right',  'right');
+  paintEl('f-price-front', 'left');
 
   // ── 6. Vertical right columns ──
-  ['f-vert-right','f-vert-right2'].forEach(id => {
+  // Characters are upright and stacked top→bottom, no rotation.
+  ['f-vert-right', 'f-vert-right2'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
-    const cs = getComputedStyle(el);
-    const dr = dRect(el);
+    const cs   = getComputedStyle(el);
+    const dr   = dRect(el);
+    const text = applyTT((el.innerText || el.textContent || '').trim(), cs);
+    if (!text) return;
     ctx.save();
-    ctx.translate(dr.x + dr.w/2, dr.y + dr.h/2);
-    ctx.rotate(Math.PI/2);
-    ctx.font = cs.font; ctx.fillStyle = cs.color;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(el.textContent, 0, 0);
+    ctx.font         = cs.font;
+    ctx.fillStyle    = cs.color;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    applyLS(cs);
+    const fontSize = parseFloat(cs.fontSize) || 13;
+    const ls       = parseFloat(cs.letterSpacing) || 0;
+    const charStep = fontSize + ls; // vertical advance per character
+    const cx       = dr.x + dr.w / 2;
+    let   y        = dr.y;
+    for (const ch of text) {
+      ctx.fillText(ch, cx, y);
+      y += charStep;
+      if (y > dr.y + dr.h) break; // clip to element height
+    }
     ctx.restore();
   });
 
-  // ── 7. Teaser with divider ──
+  // ── 7. Teaser with top divider ──
   const teaserEl = document.getElementById('f-teaser');
   if (teaserEl) {
-    const cs = getComputedStyle(teaserEl);
-    const dr = dRect(teaserEl);
+    const cs   = getComputedStyle(teaserEl);
+    const dr   = dRect(teaserEl);
+    const text = applyTT((teaserEl.innerText || teaserEl.textContent || '').trimEnd(), cs);
+    const pt   = parseFloat(cs.paddingTop) || 5;
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(dr.x, dr.y); ctx.lineTo(dr.x + dr.w, dr.y); ctx.stroke();
-    ctx.fillStyle = cs.color; ctx.font = cs.font;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(teaserEl.textContent, dr.x, dr.y + 4);
+    ctx.font         = cs.font;
+    ctx.fillStyle    = cs.color;
+    ctx.textBaseline = 'top';
+    ctx.textAlign    = 'left';
+    applyLS(cs);
+    const lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3;
+    wrapLines(text, dr.w, cs).forEach((line, i) =>
+      ctx.fillText(line, dr.x, dr.y + pt + i * lineH));
     ctx.restore();
   }
 
@@ -1225,6 +1323,7 @@ async function renderFrontToCanvas(outW, outH) {
   return c;
 }
 
+
 async function renderBackToCanvas(outW, outH) {
   const DW = DESIGN_W, DH = DESIGN_H;
   const W = outW || DW * 2, H = outH || DH * 2;
@@ -1233,7 +1332,6 @@ async function renderBackToCanvas(outW, outH) {
   const ctx = c.getContext('2d');
   await document.fonts.ready;
 
-  // ONE global scale: design pixels → output pixels
   ctx.scale(W / DW, H / DH);
 
   ctx.fillStyle = S.backBgColor || '#0d0d0d'; ctx.fillRect(0, 0, DW, DH);
@@ -1252,28 +1350,65 @@ async function renderBackToCanvas(outW, outH) {
     }
     return r;
   }
+  function applyTT(text, cs) {
+    const tt = cs.textTransform;
+    if (tt === 'uppercase')  return text.toUpperCase();
+    if (tt === 'lowercase')  return text.toLowerCase();
+    if (tt === 'capitalize') return text.replace(/\b\w/g, ch => ch.toUpperCase());
+    return text;
+  }
+  function applyLS(cs) {
+    if ('letterSpacing' in ctx) ctx.letterSpacing = cs.letterSpacing || '0px';
+  }
+  function measureW(text, cs) {
+    let w = ctx.measureText(text).width;
+    if (!('letterSpacing' in ctx)) {
+      const ls = parseFloat(cs.letterSpacing) || 0;
+      if (ls && text.length > 1) w += ls * (text.length - 1);
+    }
+    return w;
+  }
+  function wrapLines(text, maxW, cs) {
+    const result = [];
+    for (const para of text.split('\n')) {
+      if (!para.trim()) { result.push(''); continue; }
+      const words = para.split(' ');
+      let cur = '';
+      for (const word of words) {
+        if (!word) continue;
+        const test = cur ? cur + ' ' + word : word;
+        if (measureW(test, cs) > maxW && cur) { result.push(cur); cur = word; }
+        else cur = test;
+      }
+      if (cur) result.push(cur);
+    }
+    return result.length ? result : [''];
+  }
   function paintBack(id, defaultAlign, transformed) {
     const el = document.getElementById(id); if (!el) return;
-    const cs = getComputedStyle(el);
-    const dr = transformed ? dRectTY(el) : dRect(el);
+    const cs   = getComputedStyle(el);
+    const dr   = transformed ? dRectTY(el) : dRect(el);
+    const text = applyTT((el.innerText || el.textContent || '').trimEnd(), cs);
+    if (!text) return;
     ctx.save();
     ctx.font = cs.font; ctx.fillStyle = cs.color; ctx.textBaseline = 'top';
+    applyLS(cs);
     const align = cs.textAlign || defaultAlign || 'left';
     ctx.textAlign = align;
     const drawX = align === 'center' ? dr.x + dr.w/2 : align === 'right' ? dr.x + dr.w : dr.x;
     const lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize)*1.3;
-    wrapText(ctx, el.textContent||'', dr.w)
-      .forEach((line,i) => ctx.fillText(line, drawX, dr.y + i*lineH));
+    wrapLines(text, dr.w, cs).forEach((line,i) => ctx.fillText(line, drawX, dr.y + i*lineH));
     ctx.restore();
   }
   paintBack('b-brand',   'center');
   paintBack('b-tagline', 'center');
-  paintBack('b-blurb',   'center', true); // translateY(-50%)
+  paintBack('b-blurb',   'center', true);
   paintBack('b-website', 'center');
   paintBack('b-price',   'center');
   paintBack('b-legal',   'left');
   return c;
 }
+
 
 function renderSpineHires(outSpW, outH) {
   const W = outSpW || DESIGN_SW * 4;
@@ -1368,6 +1503,7 @@ document.querySelectorAll('[contenteditable=true]').forEach(el => {
   });
   el.addEventListener('input', () => {
     if (TITLE_IDS.has(el.id)) fitText(el.id, el.id === 'f-masthead' ? 72 : 42);
+    syncToSidebar(el.id);
   });
   el.addEventListener('keydown', e => {
     // Block Enter in all contenteditable fields
@@ -1437,7 +1573,8 @@ async function translateCover(lang, btn) {
   const entries = [];
   TRANSLATE_FIELD_IDS.forEach(id => {
     const el = document.getElementById(id);
-    if (el && el.textContent.trim()) entries.push({ id, text: el.textContent.trim() });
+    if (el && (el.innerText || el.textContent || '').trim())
+      entries.push({ id, text: (el.innerText || el.textContent || '').trim() });
   });
 
   try {
@@ -1445,8 +1582,9 @@ async function translateCover(lang, btn) {
     for (const entry of entries) {
       const translated = await translateOne(entry.text, fromCode, toCode);
       const el = document.getElementById(entry.id);
-      if (el) el.textContent = translated;
-      document.querySelectorAll(`[oninput*="setText('${entry.id}'"]`).forEach(inp => inp.value = translated);
+      if (el) el.innerText = translated;
+      const si = document.getElementById('si-' + entry.id);
+      if (si) si.value = translated;
       done++;
       status.textContent = `Translating… ${done}/${entries.length}`;
     }
