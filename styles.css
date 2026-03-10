@@ -1052,7 +1052,145 @@ select option {
 	letter-spacing: .5px;
 }
 
-/* Headline — large, left-aligned, mid-cover. JS chains sub below it. */
+/* ── Drag-to-reposition mode ── */
+.cover-front.move-mode .ce-text,
+.cover-back.move-mode .ce-text {
+	cursor: grab !important;
+	outline: 1px dashed rgba(200, 169, 110, .35) !important;
+}
+
+.cover-front.move-mode .ce-text:hover,
+.cover-back.move-mode .ce-text:hover {
+	outline: 1px dashed rgba(200, 169, 110, .8) !important;
+	background: rgba(200, 169, 110, .07) !important;
+}
+
+.cover-front.move-mode .ce-text.dragging,
+.cover-back.move-mode .ce-text.dragging {
+	cursor: grabbing !important;
+	outline: 1px solid var(--accent) !important;
+	background: rgba(200, 169, 110, .13) !important;
+}
+
+/* Move-mode toggle button */
+.move-toggle {
+	width: 100%;
+	padding: 7px 0;
+	font-size: 9px;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	background: #1a1a1a;
+	border: 1px solid #2a2a2a;
+	color: var(--muted);
+	cursor: pointer;
+	border-radius: 2px;
+	transition: all .2s;
+	margin-top: 6px;
+}
+
+.move-toggle:hover {
+	border-color: #444;
+	color: var(--text);
+}
+
+.move-toggle.active {
+	background: rgba(200, 169, 110, .15);
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.reset-pos-btn {
+	width: 100%;
+	padding: 5px 0;
+	font-size: 9px;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	background: transparent;
+	border: 1px solid #2a2a2a;
+	color: var(--muted);
+	cursor: pointer;
+	border-radius: 2px;
+	margin-top: 4px;
+	transition: all .2s;
+}
+
+.reset-pos-btn:hover {
+	border-color: #555;
+	color: var(--text);
+}
+
+/* ── New extra text box styles ── */
+/* Vertical left column — mirrors the right columns */
+.f-vert-left {
+	position: absolute;
+	top: 24.29%;
+	left: 3.33%;
+	z-index: 6;
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+	transform: rotate(180deg);
+	font-family: 'Bebas Neue', sans-serif;
+	font-size: 13px;
+	letter-spacing: 4px;
+	color: #c8a96e;
+	cursor: text;
+	user-select: none;
+	max-height: 32.14%;
+	overflow: hidden;
+	line-height: 1.1;
+	text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+}
+
+/* Extra callout boxes — same style as feat-left/right but repositionable */
+.f-extra-call1 {
+	position: absolute;
+	top: 38%;
+	right: 3.33%;
+	z-index: 7;
+	width: 44%;
+	font-family: 'Bebas Neue', sans-serif;
+	font-size: 14px;
+	letter-spacing: 1.5px;
+	line-height: 1.2;
+	color: #fff;
+	text-align: right;
+	text-shadow: 0 1px 8px rgba(0, 0, 0, .9);
+	cursor: text;
+	user-select: none;
+}
+
+.f-extra-call2 {
+	position: absolute;
+	top: 50%;
+	right: 3.33%;
+	z-index: 7;
+	width: 44%;
+	font-family: 'DM Sans', sans-serif;
+	font-size: 8px;
+	letter-spacing: .5px;
+	line-height: 1.5;
+	color: rgba(255, 255, 255, .75);
+	text-align: right;
+	cursor: text;
+	user-select: none;
+}
+
+/* Small label/tag — like "NEO-NOIR ELEGANCE" */
+.f-label {
+	position: absolute;
+	top: 42%;
+	left: 3.33%;
+	z-index: 7;
+	font-family: 'DM Sans', sans-serif;
+	font-size: 8px;
+	font-weight: 700;
+	letter-spacing: 2.5px;
+	text-transform: uppercase;
+	color: rgba(255, 255, 255, .6);
+	cursor: text;
+	user-select: none;
+}
+
 .f-headline {
 	position: absolute;
 	top: 54%;
