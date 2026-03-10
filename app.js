@@ -2,7 +2,7 @@
 //  STATE
 // ══════════════════════════════════════════════
 const S = {
-  title: 'VOGUE', issue: 'Vol. 12', date: 'March 2026',
+  title: 'STARVIXEN', issue: '12', date: '04/26',
   spineBgColor: '#111111', spineTextColor: '#ffffff',
   titleFontName: 'Bebas Neue',
   spineIssueRot: 'cw',
@@ -26,7 +26,7 @@ const S = {
 // ══════════════════════════════════════════════
 
 // Fields captured/restored per issue
-const ISSUE_TEXT_FIELDS = ['f-issue','f-date','f-masthead','f-tagline','f-headline','f-sub','f-teaser','f-feat-left','f-feat-right','f-vert-right','f-vert-right2','f-price-front','b-brand','b-tagline','b-blurb','b-website','b-price','b-legal'];
+const ISSUE_TEXT_FIELDS = ['f-issue','f-date','f-masthead','f-tagline','f-headline','f-sub','f-teaser','f-feat-left','f-feat-right','f-vert-left','f-vert-right','f-vert-right2','f-label','f-extra-call1','f-extra-call2','f-price-front','b-brand','b-tagline','b-blurb','b-website','b-price','b-legal'];
 const ISSUE_STATE_KEYS  = ['title','issue','date','spineBgColor','spineTextColor','titleFontName','spineIssueRot','spineHideDate','mainPosY','mainOpacity','overlayOp','frontBgColor','backBgColor','showBarcode','lang','frontAlign','taglineAlign'];
 
 let ISSUES = [];
@@ -43,6 +43,7 @@ function snapshotCurrentIssue() {
   snap.titleColor   = document.getElementById('f-masthead')?.style.color || '#fff';
   snap.mastheadFont = document.getElementById('f-masthead')?.style.fontFamily || '';
   snap.imageData = { ...S.imageData };
+  snap.domPositions = collectDomPositions();
   return snap;
 }
 
@@ -81,6 +82,13 @@ function applyIssueSnapshot(snap) {
 
   S.imageData = { bgimg:null, main:null, logo:null, back:null, spinefull:null, spinebottom:null, ...(snap.imageData||{}) };
   restoreAllImages(S.imageData);
+  // Clear all moved flags first, then apply saved positions
+  [...DRAGGABLE_IDS, 'b-brand','b-tagline','b-blurb','b-website','b-price','b-legal'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    delete el.dataset.moved;
+    el.style.top = ''; el.style.left = ''; el.style.right = ''; el.style.bottom = ''; el.style.transform = '';
+  });
+  applyDomPositions(snap.domPositions);
 
   renderSpine();
   fitAllTitles();
@@ -700,13 +708,14 @@ function clearImage(key) {
 // Map of cover element IDs that have a matching sidebar input (id="si-{coverId}")
 const SIDEBAR_SYNCED_IDS = new Set([
   'f-tagline','f-headline','f-sub','f-teaser',
-  'f-feat-left','f-feat-right','f-vert-right','f-vert-right2','f-price-front',
+  'f-feat-left','f-feat-right','f-vert-left','f-vert-right','f-vert-right2',
+  'f-label','f-extra-call1','f-extra-call2','f-price-front',
   'b-tagline','b-blurb','b-website','b-price','b-legal'
 ]);
 
-// Whether the sidebar input for this id is a <textarea> (preserves newlines) or <input>
 const MULTILINE_IDS = new Set([
-  'f-headline','f-sub','f-feat-left','f-feat-right','b-blurb','b-legal'
+  'f-headline','f-sub','f-feat-left','f-feat-right',
+  'f-extra-call1','f-extra-call2','b-blurb','b-legal'
 ]);
 
 function setText(id, val) {
@@ -728,8 +737,177 @@ function syncToSidebar(id) {
   const el = document.getElementById(id);
   const si = document.getElementById('si-' + id);
   if (!el || !si || document.activeElement === si) return;
-  // Use innerText to preserve line breaks for textareas
   si.value = el.innerText || el.textContent || '';
+}
+
+// ══════════════════════════════════════════════
+//  DRAG-TO-REPOSITION SYSTEM
+// ══════════════════════════════════════════════
+
+// All cover element IDs that can be dragged to a new position
+const DRAGGABLE_IDS = [
+  'f-issue','f-date','f-masthead','f-tagline',
+  'f-headline','f-sub','f-teaser',
+  'f-feat-left','f-feat-right',
+  'f-vert-left','f-vert-right','f-vert-right2',
+  'f-label','f-extra-call1','f-extra-call2',
+  'f-price-front','f-barcode'
+];
+
+let _moveMode  = false;
+let _dragEl    = null;
+let _dragCover = null;
+let _dragStartClientX = 0, _dragStartClientY = 0;
+let _dragStartElX     = 0, _dragStartElY     = 0;
+
+function toggleMoveMode() {
+  _moveMode = !_moveMode;
+  const btn = document.getElementById('move-toggle-btn');
+  btn.classList.toggle('active', _moveMode);
+  btn.textContent = _moveMode ? '✓ Move Mode ON' : '☩ Move Elements';
+  // Toggle move-mode class on both covers
+  ['cover-front','cover-back'].forEach(id => {
+    document.getElementById(id)?.classList.toggle('move-mode', _moveMode);
+  });
+}
+
+function resetAllPositions() {
+  DRAGGABLE_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.left   = '';
+    el.style.top    = '';
+    el.style.right  = '';
+    el.style.bottom = '';
+    el.style.transform = '';
+    delete el.dataset.moved;
+  });
+  // Also reset back cover
+  ['b-brand','b-tagline','b-blurb','b-website','b-price','b-legal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.left = ''; el.style.top = '';
+    el.style.right = ''; el.style.bottom = '';
+    el.style.transform = '';
+    delete el.dataset.moved;
+  });
+  fitAllTitles(); updateSubPos(); updateBottomZone();
+  scheduleSave();
+  showToast('Positions reset');
+}
+
+// Attach drag listeners to all cover elements
+function initDragHandlers() {
+  document.querySelectorAll('.cover-front .ce-text, .cover-back .ce-text').forEach(el => {
+    el.addEventListener('mousedown', onCoverElMousedown);
+    el.addEventListener('touchstart', onCoverElTouchstart, { passive: false });
+  });
+}
+
+function _getElBasePos(el) {
+  // offsetLeft/Top reflect layout position (design px), independent of CSS transform
+  let x = el.offsetLeft;
+  let y = el.offsetTop;
+  // Account for translateY(-50%) etc.
+  const tf = getComputedStyle(el).transform;
+  if (tf && tf !== 'none') {
+    const m = tf.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,[^,]+,\s*([-\d.]+)\)/);
+    if (m) y += parseFloat(m[1]);
+  }
+  return { x, y };
+}
+
+function _startDrag(el, clientX, clientY) {
+  _dragEl    = el;
+  _dragCover = el.closest('#cover-front, #cover-back');
+  const pos  = _getElBasePos(el);
+  _dragStartElX     = pos.x;
+  _dragStartElY     = pos.y;
+  _dragStartClientX = clientX;
+  _dragStartClientY = clientY;
+  el.classList.add('dragging');
+  // Switch to top+left positioning so dragging works cleanly
+  const DW = _dragCover.id === 'cover-front' ? DESIGN_W : DESIGN_W;
+  const DH = DESIGN_H;
+  el.style.left   = (_dragStartElX / DW * 100).toFixed(2) + '%';
+  el.style.top    = (_dragStartElY / DH * 100).toFixed(2) + '%';
+  el.style.right  = '';
+  el.style.bottom = '';
+  el.style.transform = '';
+}
+
+function onCoverElMousedown(e) {
+  if (!_moveMode) return;
+  e.preventDefault();
+  _startDrag(e.currentTarget, e.clientX, e.clientY);
+  document.addEventListener('mousemove', onDocMousemove);
+  document.addEventListener('mouseup',   onDocMouseup);
+}
+
+function onCoverElTouchstart(e) {
+  if (!_moveMode) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  _startDrag(e.currentTarget, t.clientX, t.clientY);
+  document.addEventListener('touchmove', onDocTouchmove, { passive: false });
+  document.addEventListener('touchend',  onDocTouchend);
+}
+
+function _applyDrag(clientX, clientY) {
+  if (!_dragEl || !_dragCover) return;
+  const coverRect = _dragCover.getBoundingClientRect();
+  const scaleF    = coverRect.width / DESIGN_W;
+  const dx = (clientX - _dragStartClientX) / scaleF;
+  const dy = (clientY - _dragStartClientY) / scaleF;
+  const newLeft = _dragStartElX + dx;
+  const newTop  = _dragStartElY + dy;
+  _dragEl.style.left = (newLeft / DESIGN_W * 100).toFixed(2) + '%';
+  _dragEl.style.top  = (newTop  / DESIGN_H * 100).toFixed(2) + '%';
+  _dragEl.dataset.moved = '1';
+}
+
+function _endDrag() {
+  if (!_dragEl) return;
+  _dragEl.classList.remove('dragging');
+  _dragEl = null; _dragCover = null;
+  scheduleSave();
+}
+
+function onDocMousemove(e) { _applyDrag(e.clientX, e.clientY); }
+function onDocMouseup()    { _endDrag(); document.removeEventListener('mousemove', onDocMousemove); document.removeEventListener('mouseup', onDocMouseup); }
+function onDocTouchmove(e) { e.preventDefault(); const t = e.touches[0]; _applyDrag(t.clientX, t.clientY); }
+function onDocTouchend()   { _endDrag(); document.removeEventListener('touchmove', onDocTouchmove); document.removeEventListener('touchend', onDocTouchend); }
+
+// Collect all explicitly-moved element positions for snapshot
+function collectDomPositions() {
+  const pos = {};
+  [...DRAGGABLE_IDS, 'b-brand','b-tagline','b-blurb','b-website','b-price','b-legal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || !el.dataset.moved) return;
+    pos[id] = {
+      top:    el.style.top    || '',
+      left:   el.style.left   || '',
+      right:  el.style.right  || '',
+      bottom: el.style.bottom || '',
+      transform: el.style.transform || ''
+    };
+  });
+  return pos;
+}
+
+// Apply saved positions back to elements
+function applyDomPositions(pos) {
+  if (!pos) return;
+  Object.entries(pos).forEach(([id, p]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (p.top)    el.style.top    = p.top;
+    if (p.left)   el.style.left   = p.left;
+    if (p.right  !== undefined) el.style.right  = p.right;
+    if (p.bottom !== undefined) el.style.bottom = p.bottom;
+    if (p.transform !== undefined) el.style.transform = p.transform;
+    el.dataset.moved = '1';
+  });
 }
 
 // Auto-shrink font until text fits on one line within the element's box
@@ -1260,12 +1438,14 @@ async function renderFrontToCanvas(outW, outH) {
   paintEl('f-headline',    'left', true);  // translateY(-50%)
   paintEl('f-sub',         'left');
   paintEl('f-feat-left',   'left');
-  paintEl('f-feat-right',  'right');
-  paintEl('f-price-front', 'left');
+  paintEl('f-feat-right',   'right');
+  paintEl('f-label',        'left');
+  paintEl('f-extra-call1',  'right');
+  paintEl('f-extra-call2',  'right');
+  paintEl('f-price-front',  'left');
 
-  // ── 6. Vertical right columns ──
-  // Characters are upright and stacked top→bottom, no rotation.
-  ['f-vert-right', 'f-vert-right2'].forEach(id => {
+  // ── 6. Vertical columns — upright chars stacked top→bottom ──
+  ['f-vert-left', 'f-vert-right', 'f-vert-right2'].forEach(id => {
     const el = document.getElementById(id); if (!el) return;
     const cs   = getComputedStyle(el);
     const dr   = dRect(el);
@@ -1494,11 +1674,17 @@ setTimeout(() => sl.classList.remove('show'), 4500);
 // IDs of single-line title elements that must never wrap
 const TITLE_IDS = new Set(['f-masthead', 'b-brand']);
 
-document.querySelectorAll('[contenteditable=true]').forEach(el => {
-  el.addEventListener('focus', () => { sl.textContent = 'Editing: ' + el.id; sl.classList.add('show'); });
+document.querySelectorAll('.cover-front .ce-text, .cover-back .ce-text, [contenteditable=true]').forEach(el => {
+  // Block focus/editing while in move mode
+  el.addEventListener('mousedown', e => {
+    if (_moveMode && el.classList.contains('ce-text')) { e.preventDefault(); }
+  });
+  el.addEventListener('focus', () => {
+    if (_moveMode) { el.blur(); return; }
+    sl.textContent = 'Editing: ' + el.id; sl.classList.add('show');
+  });
   el.addEventListener('blur',  () => {
     sl.classList.remove('show');
-    // Re-fit after inline edit finishes
     if (TITLE_IDS.has(el.id)) fitText(el.id, el.id === 'f-masthead' ? 72 : 42);
   });
   el.addEventListener('input', () => {
@@ -1506,13 +1692,10 @@ document.querySelectorAll('[contenteditable=true]').forEach(el => {
     syncToSidebar(el.id);
   });
   el.addEventListener('keydown', e => {
-    // Block Enter in all contenteditable fields
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el.blur(); return; }
-    // Block Shift+Enter in title fields too
     if (e.key === 'Enter' && TITLE_IDS.has(el.id)) { e.preventDefault(); el.blur(); }
   });
   el.addEventListener('paste', e => {
-    // Strip newlines on paste for title fields
     if (TITLE_IDS.has(el.id)) {
       e.preventDefault();
       const text = (e.clipboardData || window.clipboardData).getData('text/plain').replace(/[\r\n]+/g, ' ');
@@ -1769,7 +1952,7 @@ function showToast(msg, type = 'info') {
 // ══════════════════════════════════════════════
 document.fonts.ready.then(() => {
   initBarcodes();
-  // Bind focus/blur relaxation for single-line tightened elements only
+  initDragHandlers();
   ['f-masthead','f-tagline','f-issue','f-date','f-price-front','b-brand','b-tagline']
     .forEach(bindTightenOnEdit);
 
