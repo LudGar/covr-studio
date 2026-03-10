@@ -4,7 +4,6 @@
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>COVR STUDIO</title>
-      <link rel="icon" type="image/svg+xml" href="favicon.svg">
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300;1,600&display=swap" rel="stylesheet">
       <link href="./styles.css" rel="stylesheet">
    </head>
@@ -154,12 +153,23 @@
                <textarea id="si-f-feat-left" oninput="setText('f-feat-left',this.value)" style="height:48px">SEVENTH HEAVEN EXCLUSIVE!</textarea>
                <label>Right Feature Callout</label>
                <textarea id="si-f-feat-right" oninput="setText('f-feat-right',this.value)" style="height:48px">THE MATERIA MYSTERY REVEALED</textarea>
+               <label>Left Column (vertical)</label>
+               <input type="text" id="si-f-vert-left" value="" oninput="setText('f-vert-left',this.value)">
                <label>Right Column 1 (vertical)</label>
                <input type="text" id="si-f-vert-right" value="黄金の誘惑" oninput="setText('f-vert-right',this.value)">
                <label>Right Column 2 (vertical)</label>
                <input type="text" id="si-f-vert-right2" value="ティファ・ロックハート" oninput="setText('f-vert-right2',this.value)">
+               <label>Small Label / Tag</label>
+               <input type="text" id="si-f-label" value="" oninput="setText('f-label',this.value)">
+               <label>Extra Callout 1</label>
+               <textarea id="si-f-extra-call1" oninput="setText('f-extra-call1',this.value)" style="height:44px"></textarea>
+               <label>Extra Callout 2</label>
+               <textarea id="si-f-extra-call2" oninput="setText('f-extra-call2',this.value)" style="height:44px"></textarea>
                <label>Front Price / Edition</label>
                <input type="text" id="si-f-price-front" value="¥780 / DEC. 2023" oninput="setText('f-price-front',this.value)">
+               <div class="section-title" style="margin-top:16px">Layout</div>
+               <button class="move-toggle" id="move-toggle-btn" onclick="toggleMoveMode()">☩ Move Elements</button>
+               <button class="reset-pos-btn" onclick="resetAllPositions()">↺ Reset All Positions</button>
                <label>Title Alignment</label>
                <div class="align-btns" id="abtns-masthead">
                   <button onclick="setAlign('f-masthead','left',this,'abtns-masthead')">L</button>
@@ -318,19 +328,23 @@
                      <div class="lyr lyr-bg-img"   id="lyr-bg-img"></div>
                      <div class="lyr lyr-main-img" id="lyr-main-img"></div>
                      <div class="lyr lyr-overlay"  id="lyr-overlay"></div>
-                     <div class="f-issue"    id="f-issue"    contenteditable="true">Vol. 12</div>
-                     <div class="f-date"     id="f-date"     contenteditable="true">March 2026</div>
-                     <div class="f-masthead" id="f-masthead" contenteditable="true">VOGUE</div>
+                     <div class="f-issue    ce-text" id="f-issue"    contenteditable="true">Vol. 12</div>
+                     <div class="f-date     ce-text" id="f-date"     contenteditable="true">March 2026</div>
+                     <div class="f-masthead ce-text" id="f-masthead" contenteditable="true">VOGUE</div>
                      <img class="f-logo-img" id="f-logo-img" alt="logo">
-                     <div class="f-tagline"   id="f-tagline"   contenteditable="true">The Definitive Voice of Fashion</div>
-                     <div class="f-vert-right"  id="f-vert-right"  contenteditable="true">黄金の誘惑</div>
-                     <div class="f-vert-right2" id="f-vert-right2" contenteditable="true">ティファ・ロックハート</div>
-                     <div class="f-headline" id="f-headline" contenteditable="true">TIFA LOCKHART</div>
-                     <div class="f-sub"      id="f-sub"      contenteditable="true">BORN TO SERVE, DESTINED TO CONQUER? UNCERTAIN FUTURE OF AN AVALANCHE QUEEN.</div>
-                     <div class="f-teaser"   id="f-teaser"   contenteditable="true">Beauty · Fashion · Desire · Culture · Art</div>
-                     <div class="f-feat-left"  id="f-feat-left"  contenteditable="true">SEVENTH HEAVEN EXCLUSIVE!</div>
-                     <div class="f-feat-right" id="f-feat-right" contenteditable="true">THE MATERIA MYSTERY REVEALED</div>
-                     <div class="f-price-front" id="f-price-front" contenteditable="true">¥780 / DEC. 2023</div>
+                     <div class="f-tagline   ce-text" id="f-tagline"   contenteditable="true">The Definitive Voice of Fashion</div>
+                     <div class="f-vert-left  ce-text" id="f-vert-left"  contenteditable="true"></div>
+                     <div class="f-vert-right  ce-text" id="f-vert-right"  contenteditable="true">黄金の誘惑</div>
+                     <div class="f-vert-right2 ce-text" id="f-vert-right2" contenteditable="true">ティファ・ロックハート</div>
+                     <div class="f-headline ce-text" id="f-headline" contenteditable="true">TIFA LOCKHART</div>
+                     <div class="f-sub      ce-text" id="f-sub"      contenteditable="true">BORN TO SERVE, DESTINED TO CONQUER? UNCERTAIN FUTURE OF AN AVALANCHE QUEEN.</div>
+                     <div class="f-label    ce-text" id="f-label"    contenteditable="true"></div>
+                     <div class="f-extra-call1 ce-text" id="f-extra-call1" contenteditable="true"></div>
+                     <div class="f-extra-call2 ce-text" id="f-extra-call2" contenteditable="true"></div>
+                     <div class="f-teaser   ce-text" id="f-teaser"   contenteditable="true">Beauty · Fashion · Desire · Culture · Art</div>
+                     <div class="f-feat-left  ce-text" id="f-feat-left"  contenteditable="true">SEVENTH HEAVEN EXCLUSIVE!</div>
+                     <div class="f-feat-right ce-text" id="f-feat-right" contenteditable="true">THE MATERIA MYSTERY REVEALED</div>
+                     <div class="f-price-front ce-text" id="f-price-front" contenteditable="true">¥780 / DEC. 2023</div>
                      <div class="f-barcode"  id="f-barcode">
                         <svg id="bc-svg-front"></svg>
                      </div>
